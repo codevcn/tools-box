@@ -11,18 +11,24 @@ from PySide6.QtWidgets import (
     QFileDialog,
     QMessageBox,
     QSizePolicy,
+    QFrame,
 )
+from PySide6.QtCore import QProcess, QSize, Qt
+from login_gdrive_screen import LoginGDriveScreen
+from components.popup import CustomPopup
+from components.divider import CustomDivider
 from utils.helpers import (
     detect_content_type_by_file_extension,
     detect_file_extension,
     detect_path_type,
-    extract_common_folder_str,
     extract_filename_with_ext,
+    get_svg_file_path,
+    svg_to_pixmap,
 )
 from components.flow_layout import CustomFlowLayout
 from components.selected_file_box import FileInfoBox
 from components.label import CustomLabel
-from sync_worker import RcloneSyncWorker
+from workers.sync_worker import RcloneSyncWorker
 from data.data_manager import DataManager
 from configs.configs import SyncError
 
@@ -32,11 +38,13 @@ class MainWindow(QWidget):
 
     def __init__(self, local_paths: list[str]):
         super().__init__()
+        self.buttonColor = "#00bdad"
+
         self.worker: RcloneSyncWorker
         self.dataManager: DataManager = DataManager()
         self.root_layout: QVBoxLayout
+        self.top_menu_layout: QHBoxLayout
         self.local_paths_list = local_paths
-        self.local_dir_textfield: QLineEdit
         self.gdrive_path_input: QLineEdit
         self.selected_docs_preview: QWidget | None = None
         self.selected_docs_layout: QVBoxLayout
@@ -47,7 +55,6 @@ class MainWindow(QWidget):
 
     def _set_local_paths_list(self, paths: list[str]) -> None:
         self.local_paths_list = paths
-        self.local_dir_textfield.setText(extract_common_folder_str(paths))
         self._render_selected_docs_preview()
 
     def _setup_ui(self) -> None:
@@ -56,28 +63,30 @@ class MainWindow(QWidget):
         self.resize(900, 600)
 
         root_layout = QVBoxLayout(self)
-        root_layout.setContentsMargins(12, 12, 12, 12)
+        root_layout.setContentsMargins(12, 8, 12, 12)
         root_layout.setSpacing(4)
         self.root_layout = root_layout
 
-        # Local paths section (hiển thị danh sách paths đã truyền vào)
-        local_dir_section = self._create_path_input_section(
-            "Đường dẫn thư mục trên máy:",
-            is_local=True,
-            margins=(6, 0, 0, 0),
-        )
-        self.local_dir_textfield = local_dir_section["input"]
+        # Top menu section
+        top_menu_frame = QFrame()
+        self.top_menu_layout = QHBoxLayout(top_menu_frame)
+        self.top_menu_layout.setContentsMargins(0, 0, 0, 0)
+        self._render_top_menu()
+
+        # Divider
+        divider = CustomDivider(Qt.Orientation.Horizontal)
 
         # Selected docs preview section
         self.selected_docs_layout = QVBoxLayout()
         self.selected_docs_layout.setSpacing(4)
+        self.selected_docs_layout.setContentsMargins(0, 8, 0, 0)
         selected_docs_label = CustomLabel("Các tệp và thư mục được chọn:", is_bold=True)
-        selected_docs_label.setContentsMargins(6, 8, 0, 0)
+        selected_docs_label.setContentsMargins(6, 0, 0, 0)
         self.selected_docs_layout.addWidget(selected_docs_label)
 
         # GDrive folder section
         gdrive_layout = self._create_path_input_section(
-            "Đường dẫn thư mục trên Google Drive:",
+            "Đường dẫn thư mục đích trên Google Drive:",
             is_local=False,
             margins=(6, 16, 0, 0),
             default_base_dir=self.dataManager.get_saved_gdrive_root_dir(),
@@ -93,7 +102,9 @@ class MainWindow(QWidget):
 
         # Main section layout
         main_layout_section = QVBoxLayout()
-        main_layout_section.addLayout(local_dir_section["layout"])
+        main_layout_section.setContentsMargins(0, 0, 0, 0)
+        main_layout_section.addWidget(top_menu_frame)
+        main_layout_section.addWidget(divider)
         main_layout_section.addLayout(self.selected_docs_layout)
         main_layout_section.addLayout(gdrive_layout["layout"])
         # main_layout_section.addWidget(log_label)
@@ -102,6 +113,75 @@ class MainWindow(QWidget):
 
         root_layout.addLayout(main_layout_section)
         self._render_sync_button()
+
+    def _render_top_menu(self) -> None:
+        left_actions_layout = QHBoxLayout()
+
+        # Nút Browse local folder (bên trái)
+        browse_btn = QPushButton("Chọn thư mục/tệp...")
+        browse_btn.setIcon(
+            svg_to_pixmap(
+                get_svg_file_path("browse_file_icon.svg")[0],
+                26,
+                None,
+                "#000000",
+                margins=(0, 0, 8, 0),
+            )
+        )
+        browse_btn.setIconSize(QSize(26, 26))
+        browse_btn.setStyleSheet(
+            f"""
+            QPushButton {{
+                padding: 2px 12px 4px;
+                background-color: {self.buttonColor};
+                color: black;
+            }}
+            """
+        )
+        browse_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        browse_btn.clicked.connect(self._browse_local_folder)
+        browse_btn_font = browse_btn.font()
+        browse_btn_font.setBold(True)
+        browse_btn_font.setPointSize(12)
+        browse_btn.setFont(browse_btn_font)
+        left_actions_layout.addWidget(browse_btn)
+        left_actions_layout.addStretch()
+
+        right_actions_layout = QHBoxLayout()
+
+        # Nút Đăng nhập (bên phải)
+        login_btn = QPushButton("Đăng nhập Google Drive")
+        login_btn.setIcon(
+            svg_to_pixmap(
+                get_svg_file_path("login_icon.svg")[0],
+                26,
+                None,
+                "#000000",
+                margins=(0, 0, 8, 0),
+            )
+        )
+        login_btn.setIconSize(QSize(26, 26))
+        login_btn.setStyleSheet(
+            f"""
+            QPushButton {{
+                padding: 2px 12px 4px;
+                background-color: {self.buttonColor};
+                color: black;
+            }}
+            """
+        )
+        login_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        login_btn.clicked.connect(self._do_login_gdrive)
+        login_btn_font = login_btn.font()
+        login_btn_font.setBold(True)
+        login_btn_font.setPointSize(12)
+        login_btn.setFont(login_btn_font)
+        right_actions_layout.addStretch()
+        right_actions_layout.addWidget(login_btn)
+
+        # Thêm left và right vào top menu
+        self.top_menu_layout.addLayout(left_actions_layout)
+        self.top_menu_layout.addLayout(right_actions_layout)
 
     def _render_sync_button(self) -> None:
         """Cập nhật trạng thái nút đồng bộ."""
@@ -114,6 +194,26 @@ class MainWindow(QWidget):
                 self.sync_btn.setText("Đồng bộ ngay")
         else:
             self.sync_btn = QPushButton("Đồng bộ ngay")
+            self.sync_btn.setIcon(
+                svg_to_pixmap(
+                    get_svg_file_path("double_check_icon.svg")[0],
+                    30,
+                    None,
+                    "#000000",
+                    3,
+                    (0, 0, 8, 0),
+                )
+            )
+            self.sync_btn.setIconSize(QSize(30, 30))
+            self.sync_btn.setStyleSheet(
+                f"""
+                QPushButton {{
+                    background-color: {self.buttonColor};
+                    color: black;
+                }}
+                """
+            )
+            self.sync_btn.setCursor(Qt.CursorShape.PointingHandCursor)
             sync_btn_font = self.sync_btn.font()
             sync_btn_font.setBold(True)
             self.sync_btn.setFont(sync_btn_font)
@@ -138,9 +238,7 @@ class MainWindow(QWidget):
         # Thêm nhiều box để thấy wrap
         items: list[tuple[str, str]] = []
         for path in self.local_paths_list:
-            script_dir = Path(__file__).resolve().parent
-            prefix_path = f"{script_dir}\\assets\\images\\svg"
-            svg = f"{prefix_path}\\file_icon.svg"
+            svg, prefix_path = get_svg_file_path("file_icon.svg")
             path_type = detect_path_type(path)
             if path_type == "file":
                 file_ext = detect_file_extension(path)
@@ -195,12 +293,12 @@ class MainWindow(QWidget):
             """
         )
 
-        if default_base_dir is not None:
+        if default_base_dir:
             input_field.setText(default_base_dir)
         input_field.setPlaceholderText(
-            "VD: C:\\Users\\Your Name\\Documents"
+            "C:/Users/Nguyễn Văn A/Tài liệu"
             if is_local
-            else "VD: Thư mục 1/Thư mục 2/..."
+            else "Thư mục 1/Thư mục 2/Thư mục 3/..."
         )
 
         result = {
@@ -230,6 +328,11 @@ class MainWindow(QWidget):
         )
         if folder:
             self._set_local_paths_list([folder])
+
+    def _do_login_gdrive(self) -> None:
+        """Mở popup đăng nhập Google Drive."""
+        login_gdrive_screen = LoginGDriveScreen(self)
+        login_gdrive_screen.exec()
 
     def _validate_inputs(self) -> tuple[bool, str, SyncError]:
         """Validate input paths trước khi sync."""
@@ -269,90 +372,57 @@ class MainWindow(QWidget):
 
     def _do_sync(self) -> None:
         """Thực hiện đồng bộ."""
-        self.is_syncing = True
-        self._render_sync_button()
-        self.log_output.clear()
-
-        # Start sync worker cho từng path
+        # Start sync with worker
         gdrive_path = self.gdrive_path_input.text().strip()
+        local_paths = self.local_paths_list
 
-        # Sync path đầu tiên
-        self._append_log(f"Đồng bộ {len(self.local_paths_list)} path(s)...\n")
-        self._sync_next_path(0, gdrive_path)
+        self.worker = RcloneSyncWorker(local_paths, gdrive_path)
+
+        # connect signals
+        self.worker.log.connect(self._append_log)
+        self.worker.done.connect(self._on_sync_finished)
+
+        # chạy
+        self.worker.sync_multi_entries()
 
     def _on_sync_start(self) -> None:
         """Xử lý khi người dùng nhấn nút Đồng bộ."""
         # Validate inputs
         is_valid, error_msg, err_type = self._validate_inputs()
         if err_type == SyncError.NEED_LOGIN:
-            QMessageBox.information(self, "Yêu cầu đăng nhập", error_msg)
+            popup = CustomPopup(
+                self,
+                title="Yêu cầu đăng nhập",
+                text=error_msg,
+                icon_pixmap=svg_to_pixmap(
+                    get_svg_file_path("info_icon.svg")[0],
+                    35,
+                    None,
+                    "#00a0df",
+                    margins=(0, 0, 8, 0),
+                ),
+            )
+            popup.exec_and_get()
             return
         elif not is_valid:
             QMessageBox.warning(self, "Lỗi", error_msg)
             return
+
+        # Start sync
+        self.is_syncing = True
+        self._render_sync_button()
+        self.log_output.clear()
+
         self._do_sync()
 
     def _append_log(self, text: str) -> None:
-        cursor = self.log_output.textCursor()
-        cursor.movePosition(cursor.MoveOperation.Start)
-        cursor.insertText(text.rstrip() + "\n")
+        # cursor = self.log_output.textCursor()
+        # cursor.movePosition(cursor.MoveOperation.Start)
+        # cursor.insertText(text.rstrip() + "\n")
+        pass
 
-    def _sync_next_path(self, index: int, gdrive_path: str) -> None:
-        """Sync path tiếp theo trong danh sách."""
-        if index >= len(self.local_paths_list):
-            # Đã sync hết
-            self._on_all_sync_finished()
-            return
-
-        local_path = self.local_paths_list[index]
-        path_name = Path(local_path).name
-
-        # Tạo gdrive destination path với tên folder/file
-        gdrive_dest = f"{gdrive_path}/{path_name}"
-
-        self._append_log(f"\n{'='*50}")
-        self._append_log(
-            f"[{index + 1}/{len(self.local_paths_list)}] Đồng bộ: {local_path}"
-        )
-        self._append_log(f"Đích: {gdrive_dest}")
-        self._append_log(f"{'='*50}\n")
-
-        self.worker = RcloneSyncWorker(local_path, gdrive_dest)
-        self.worker.output_received.connect(self._append_log)
-        self.worker.sync_finished.connect(
-            lambda success, msg: self._on_single_sync_finished(
-                success, msg, index, gdrive_path
-            )
-        )
-        self.worker.start()
-
-    def _on_single_sync_finished(
-        self, success: bool, message: str, index: int, gdrive_path: str
-    ) -> None:
-        """Xử lý khi sync 1 path hoàn thành."""
-        self._append_log(f"\n{message}\n")
-
-        if not success:
-            # Nếu có lỗi, dừng lại
-            self._on_all_sync_finished(False, f"Lỗi khi đồng bộ path thứ {index + 1}")
-            return
-
-        # Sync path tiếp theo
-        self._sync_next_path(index + 1, gdrive_path)
-
-    def _on_all_sync_finished(self, success: bool = True, error_msg: str = "") -> None:
-        """Xử lý khi tất cả paths đã sync xong."""
-        if self.sync_btn:
-            self.sync_btn.setEnabled(True)
-            self.sync_btn.setText("Đồng bộ ngay")
-
-        if success:
-            message = f"Đã đồng bộ thành công {len(self.local_paths_list)} path(s)!"
-            self._append_log(f"\n{'='*50}\n✅ {message}\n{'='*50}")
-            QMessageBox.information(self, "Thành công", message)
-        else:
-            self._append_log(f"\n{'='*50}\n❌ {error_msg}\n{'='*50}")
-            QMessageBox.critical(self, "Lỗi", error_msg)
+    def _on_sync_finished(self, code: int, status: QProcess.ExitStatus) -> None:
+        pass
 
 
 def init_app() -> None:

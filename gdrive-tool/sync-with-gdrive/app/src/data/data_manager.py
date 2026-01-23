@@ -1,4 +1,5 @@
 from pathlib import Path
+from flask import json
 from utils.helpers import get_json_field_value
 
 
@@ -25,3 +26,36 @@ class DataManager:
     def get_active_remote(self) -> str | None:
         """Trả về remote đang được sử dụng (nếu có)."""
         return get_json_field_value("active_remote", self.config_path)
+
+    def save_active_remote(self, remote_name: str) -> None:
+        """Lưu remote đang được sử dụng."""
+        try:
+            if not self.config_path.exists():
+                data = {}
+            else:
+                with open(self.config_path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+            data["active_remote"] = remote_name
+            with open(self.config_path, "w", encoding="utf-8") as f:
+                json.dump(data, f, indent=4, ensure_ascii=False)
+        except Exception as e:
+            print(f">>> Error saving active remote: {e}")
+            raise e
+
+    def add_new_remote(self, remote_name: str) -> None:
+        """Thêm remote mới vào danh sách remotes đã cấu hình."""
+        try:
+            if not self.config_path.exists():
+                data = {"remotes": []}
+            else:
+                with open(self.config_path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+            remotes = data.get("remotes", [])
+            if remote_name not in remotes:
+                remotes.append(remote_name)
+                data["remotes"] = remotes
+                with open(self.config_path, "w", encoding="utf-8") as f:
+                    json.dump(data, f, indent=4, ensure_ascii=False)
+        except Exception as e:
+            print(f">>> Error adding new remote: {e}")
+            raise e

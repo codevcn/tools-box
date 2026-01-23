@@ -7,6 +7,7 @@ from configs.configs import PathType, CODE_EXTENSIONS, MEDIA_EXTENSIONS
 from PySide6.QtSvg import QSvgRenderer
 from PySide6.QtGui import QPixmap, QPainter
 from PySide6.QtCore import Qt, QRectF
+import re
 
 
 def extract_common_folder(paths: Iterable[str]) -> Path:
@@ -122,46 +123,101 @@ def svg_to_pixmap(
     size: int,
     fill_color: str | None = None,
     stroke_color: str | None = None,
+    stroke_width: float | None = None,
+    margins: int | tuple[int, int, int, int] = 0,  # <--- Tham số mới
 ) -> QPixmap:
-    # Đọc và thay đổi màu trong SVG
-    with open(svg_path, "r", encoding="utf-8") as f:
-        svg_content = f.read()
+    """
+    Chuyển đổi SVG thành QPixmap với tùy chọn đổi màu và thêm margin.
 
-    # Thay thế các thuộc tính màu bằng màu mới
-    # Thay fill="currentColor" hoặc stroke="currentColor" bằng màu cụ thể
+    Args:
+        svg_path: Đường dẫn file SVG.
+        size: Kích thước của nội dung icon (không bao gồm margin).
+        fill_color: Màu fill mới (VD: "#ffffff").
+        stroke_color: Màu stroke mới.
+        margins: Khoảng cách bao quanh.
+                 Nhập int (VD: 5) để áp dụng 4 phía.
+                 Nhập tuple (left, top, right, bottom) (VD: (0, 0, 8, 0)).
+    """
+
+    # 1. Đọc và xử lý nội dung SVG (giữ nguyên logic của bạn)
+    try:
+        with open(svg_path, "r", encoding="utf-8") as f:
+            svg_content = f.read()
+    except Exception as e:
+        print(f"Error reading SVG: {e}")
+        return QPixmap()
+
+    # Thay thế màu sắc
     if fill_color:
         svg_content = svg_content.replace('fill="currentColor"', f'fill="{fill_color}"')
+        # Regex thay thế mạnh tay hơn nếu cần
+        if "currentColor" not in svg_content:
+            svg_content = re.sub(r'fill="[^"]*"', f'fill="{fill_color}"', svg_content)
+            svg_content = re.sub(
+                r"<path(?![^>]*fill=)", f'<path fill="{fill_color}"', svg_content
+            )
+
     if stroke_color:
         svg_content = svg_content.replace(
             'stroke="currentColor"', f'stroke="{stroke_color}"'
         )
+        if "currentColor" not in svg_content:
+            svg_content = re.sub(
+                r'stroke="[^"]*"(?!\s*stroke-width)',
+                f'stroke="{stroke_color}"',
+                svg_content,
+            )
 
-    # Nếu không có currentColor, thêm fill vào các path/shape
-    if "currentColor" not in svg_content:
-        # Thay thế fill và stroke có sẵn
-        import re
+    if stroke_width:
+        if re.search(r'stroke-width="[^"]*"', svg_content):
+            svg_content = re.sub(
+                r'stroke-width="[^"]*"',
+                f'stroke-width="{stroke_width}"',
+                svg_content,
+            )
+        else:
+            # 2. Nếu chưa có → inject vào thẻ <svg ...>
+            svg_content = re.sub(
+                r"<svg\b",
+                f'<svg stroke-width="{stroke_width}"',
+                svg_content,
+                count=1,
+            )
 
-        svg_content = re.sub(r'fill="[^"]*"', f'fill="{fill_color}"', svg_content)
-        svg_content = re.sub(
-            r'stroke="[^"]*"(?!\s*stroke-width)',
-            f'stroke="{stroke_color}"',
-            svg_content,
-        )
-        # Thêm fill cho các path không có fill
-        svg_content = re.sub(
-            r"<path(?![^>]*fill=)", f'<path fill="{fill_color}"', svg_content
-        )
+    # 2. Xử lý logic Margin (/ˈmɑrdʒɪn/)
+    if isinstance(margins, int):
+        left = top = right = bottom = margins
+    elif isinstance(margins, (tuple, list)) and len(margins) == 4:
+        left, top, right, bottom = margins
+    else:
+        left = top = right = bottom = 0
 
-    # Render SVG với màu đã thay đổi
+    # Tính toán kích thước tổng thể của QPixmap (Icon + Margins)
+    total_width = size + left + right
+    total_height = size + top + bottom
+
+    # 3. Render
     renderer = QSvgRenderer(svg_content.encode("utf-8"))
 
-    pixmap = QPixmap(size, size)
-    pixmap.fill(Qt.GlobalColor.transparent)
+    # Tạo Pixmap với kích thước tổng
+    pixmap = QPixmap(total_width, total_height)
+    pixmap.fill(Qt.GlobalColor.transparent)  # Nền trong suốt
 
     painter = QPainter(pixmap)
     painter.setRenderHint(QPainter.RenderHint.Antialiasing)
 
-    renderer.render(painter, QRectF(0, 0, size, size))
+    # Vẽ icon vào vị trí đã tính toán (dịch chuyển theo left, top)
+    # Kích thước vẽ vẫn là `size` gốc
+    renderer.render(painter, QRectF(left, top, size, size))
+
     painter.end()
 
     return pixmap
+
+
+def get_svg_file_path(svg_name: str) -> tuple[str, str]:
+    """Lấy đường dẫn đầy đủ đến file SVG trong thư mục assets."""
+    src_dir = Path(__file__).resolve().parent.parent
+    prefix_path = f"{src_dir}\\assets\\images\\svg"
+    svg = f"{prefix_path}\\{svg_name}"
+    return svg, prefix_path

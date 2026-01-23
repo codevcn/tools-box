@@ -11,7 +11,7 @@ class CustomLabel(QLabel):
         is_word_wrap: bool = False,
     ):
         super().__init__(text, parent)
-        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
         if is_bold:
             font = self.font()
             font.setBold(True)
