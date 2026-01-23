@@ -1,0 +1,37 @@
+Windows Registry Editor Version 5.00
+
+; ==========================================
+; Sync with Google Drive - for FILES (multi-select)
+; ==========================================
+[HKEY_CURRENT_USER\Software\Classes\*\shell\SyncWithGDrive]
+@="Sync with Google Drive"
+"Icon"="D:\\D-Documents\\TOOLs\\gdrive-tool\\sync-with-gdrive\\app.ico"
+"MultiSelectModel"="Player"
+
+[HKEY_CURRENT_USER\Software\Classes\*\shell\SyncWithGDrive\command]
+@="\"D:\\Python-3-12\\python.exe\" \"D:\\D-Documents\\TOOLs\\gdrive-tool\\sync-with-gdrive\\run_app.py\" \"%1\""
+
+
+; ==========================================
+; Sync with Google Drive - for FOLDERS (multi-select)
+; ==========================================
+[HKEY_CURRENT_USER\Software\Classes\Directory\shell\SyncWithGDrive]
+@="Sync with Google Drive"
+"Icon"="D:\\D-Documents\\TOOLs\\gdrive-tool\\sync-with-gdrive\\app.ico"
+"MultiSelectModel"="Player"
+
+[HKEY_CURRENT_USER\Software\Classes\Directory\shell\SyncWithGDrive\command]
+@="\"D:\\Python-3-12\\python.exe\" \"D:\\D-Documents\\TOOLs\\gdrive-tool\\sync-with-gdrive\\run_app.py\" \"%1\""
+
+
+; ==========================================
+; DIRECTORY BACKGROUND (cannot multi-select by nature)
+; Right-click empty space inside a folder => pass current folder
+; ==========================================
+[HKEY_CURRENT_USER\Software\Classes\Directory\Background\shell\SyncWithGDrive]
+@="Sync with Google Drive"
+"Icon"="D:\\D-Documents\\TOOLs\\gdrive-tool\\sync-with-gdrive\\app.ico"
+"MultiSelectModel"="Single"
+
+[HKEY_CURRENT_USER\Software\Classes\Directory\Background\shell\SyncWithGDrive\command]
+@="\"D:\\Python-3-12\\python.exe\" \"D:\\D-Documents\\TOOLs\\gdrive-tool\\sync-with-gdrive\\run_app.py\" \"%V\""
