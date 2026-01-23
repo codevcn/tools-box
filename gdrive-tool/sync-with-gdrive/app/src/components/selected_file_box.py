@@ -18,7 +18,7 @@ class FileInfoBox(QFrame):
         self.setSizePolicy(QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Fixed)
 
         layout = QHBoxLayout(self)
-        layout.setContentsMargins(12, 8, 12, 8)  # padding trong box
+        layout.setContentsMargins(12, 4, 12, 6)  # padding trong box
         layout.setSpacing(8)
 
         icon = QLabel()
@@ -34,6 +34,9 @@ class FileInfoBox(QFrame):
             Qt.TextInteractionFlag.TextSelectableByMouse
             | Qt.TextInteractionFlag.TextSelectableByKeyboard
         )  # optional
+        font = label.font()
+        font.setPointSize(12)
+        label.setFont(font)
 
         layout.addWidget(icon)
         layout.addWidget(label)

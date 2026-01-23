@@ -3,9 +3,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Callable, Optional, Dict
 
-from PySide6.QtCore import QObject, Signal, Qt
+from PySide6.QtCore import QObject, Signal
 from PySide6.QtGui import QIcon, QPixmap
-from PySide6.QtWidgets import QMessageBox, QPushButton, QWidget, QGridLayout, QLabel
+from PySide6.QtWidgets import QMessageBox, QPushButton, QWidget, QLabel
 
 
 ButtonCallback = Callable[[], None]

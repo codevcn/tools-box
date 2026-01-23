@@ -184,7 +184,7 @@ def svg_to_pixmap(
                 count=1,
             )
 
-    # 2. Xử lý logic Margin (/ˈmɑrdʒɪn/)
+    # 2. Xử lý logic Margin
     if isinstance(margins, int):
         left = top = right = bottom = margins
     elif isinstance(margins, (tuple, list)) and len(margins) == 4:

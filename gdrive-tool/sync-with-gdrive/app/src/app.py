@@ -6,10 +6,8 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QHBoxLayout,
     QLineEdit,
-    QPushButton,
-    QTextEdit,
     QFileDialog,
-    QMessageBox,
+    QLabel,
     QSizePolicy,
     QFrame,
 )
@@ -30,7 +28,8 @@ from components.selected_file_box import FileInfoBox
 from components.label import CustomLabel
 from workers.sync_worker import RcloneSyncWorker
 from data.data_manager import DataManager
-from configs.configs import SyncError
+from configs.configs import SyncError, ThemeColors
+from components.button import CustomButton
 
 
 class MainWindow(QWidget):
@@ -38,8 +37,6 @@ class MainWindow(QWidget):
 
     def __init__(self, local_paths: list[str]):
         super().__init__()
-        self.buttonColor = "#00bdad"
-
         self.worker: RcloneSyncWorker
         self.dataManager: DataManager = DataManager()
         self.root_layout: QVBoxLayout
@@ -48,8 +45,9 @@ class MainWindow(QWidget):
         self.gdrive_path_input: QLineEdit
         self.selected_docs_preview: QWidget | None = None
         self.selected_docs_layout: QVBoxLayout
-        self.sync_btn: QPushButton | None = None
+        self.sync_btn: CustomButton | None = None
         self.is_syncing: bool = False
+        self.log_output: QLabel
         self._setup_ui()
         self._set_local_paths_list(local_paths)
 
@@ -94,11 +92,6 @@ class MainWindow(QWidget):
         self.gdrive_path_input = gdrive_layout["input"]
 
         # Output log section
-        log_label = CustomLabel("Chi tiết đồng bộ:", is_bold=True)
-        log_label.setContentsMargins(6, 16, 0, 0)
-        self.log_output = QTextEdit()
-        self.log_output.setReadOnly(True)
-        self.log_output.setFixedHeight(100)
 
         # Main section layout
         main_layout_section = QVBoxLayout()
@@ -118,7 +111,7 @@ class MainWindow(QWidget):
         left_actions_layout = QHBoxLayout()
 
         # Nút Browse local folder (bên trái)
-        browse_btn = QPushButton("Chọn thư mục/tệp...")
+        browse_btn = CustomButton("Chọn thư mục/tệp...")
         browse_btn.setIcon(
             svg_to_pixmap(
                 get_svg_file_path("browse_file_icon.svg")[0],
@@ -131,9 +124,9 @@ class MainWindow(QWidget):
         browse_btn.setIconSize(QSize(26, 26))
         browse_btn.setStyleSheet(
             f"""
-            QPushButton {{
+            CustomButton {{
                 padding: 2px 12px 4px;
-                background-color: {self.buttonColor};
+                background-color: {ThemeColors.MAIN};
                 color: black;
             }}
             """
@@ -150,7 +143,7 @@ class MainWindow(QWidget):
         right_actions_layout = QHBoxLayout()
 
         # Nút Đăng nhập (bên phải)
-        login_btn = QPushButton("Đăng nhập Google Drive")
+        login_btn = CustomButton("Đăng nhập Google Drive")
         login_btn.setIcon(
             svg_to_pixmap(
                 get_svg_file_path("login_icon.svg")[0],
@@ -163,9 +156,9 @@ class MainWindow(QWidget):
         login_btn.setIconSize(QSize(26, 26))
         login_btn.setStyleSheet(
             f"""
-            QPushButton {{
+            CustomButton {{
                 padding: 2px 12px 4px;
-                background-color: {self.buttonColor};
+                background-color: {ThemeColors.MAIN};
                 color: black;
             }}
             """
@@ -193,7 +186,7 @@ class MainWindow(QWidget):
                 self.sync_btn.setEnabled(True)
                 self.sync_btn.setText("Đồng bộ ngay")
         else:
-            self.sync_btn = QPushButton("Đồng bộ ngay")
+            self.sync_btn = CustomButton("Đồng bộ ngay")
             self.sync_btn.setIcon(
                 svg_to_pixmap(
                     get_svg_file_path("double_check_icon.svg")[0],
@@ -207,8 +200,8 @@ class MainWindow(QWidget):
             self.sync_btn.setIconSize(QSize(30, 30))
             self.sync_btn.setStyleSheet(
                 f"""
-                QPushButton {{
-                    background-color: {self.buttonColor};
+                CustomButton {{
+                    background-color: {ThemeColors.MAIN};
                     color: black;
                 }}
                 """
@@ -307,7 +300,7 @@ class MainWindow(QWidget):
         }
 
         if is_local:
-            browse_btn = QPushButton("Browse...")
+            browse_btn = CustomButton("Browse...")
             browse_btn.setContentsMargins(0, 0, 0, 0)
             browse_btn.clicked.connect(self._browse_local_folder)
             input_layout.addWidget(input_field)
@@ -405,7 +398,19 @@ class MainWindow(QWidget):
             popup.exec_and_get()
             return
         elif not is_valid:
-            QMessageBox.warning(self, "Lỗi", error_msg)
+            popup = CustomPopup(
+                self,
+                title="Lỗi",
+                text=error_msg,
+                icon_pixmap=svg_to_pixmap(
+                    get_svg_file_path("warn_icon.svg")[0],
+                    35,
+                    None,
+                    "#ff0000",
+                    margins=(0, 0, 8, 0),
+                ),
+            )
+            popup.exec_and_get()
             return
 
         # Start sync
@@ -415,11 +420,14 @@ class MainWindow(QWidget):
 
         self._do_sync()
 
+    def _render_log_section(self) -> None:
+        log_label = CustomLabel("Chi tiết đồng bộ:", is_bold=True)
+        log_label.setContentsMargins(6, 16, 0, 0)
+        self.log_output = QLabel()
+        self.log_output.setFixedHeight(100)
+
     def _append_log(self, text: str) -> None:
-        # cursor = self.log_output.textCursor()
-        # cursor.movePosition(cursor.MoveOperation.Start)
-        # cursor.insertText(text.rstrip() + "\n")
-        pass
+        self.log_output.setText(f"{text}\n" + self.log_output.text())
 
     def _on_sync_finished(self, code: int, status: QProcess.ExitStatus) -> None:
         pass
