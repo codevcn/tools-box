@@ -51,7 +51,7 @@ MEDIA_EXTENSIONS = {
 }
 
 
-class SyncError(Enum):
+class SyncError(int, Enum):
     NONE = 1
     COMMON = 2
     NEED_LOGIN = 3
@@ -63,3 +63,5 @@ class ThemeColors:
     LIGHT_MAIN = "#74e5db"
     DARK_MAIN = "#21c1b3"
     GRAY_BACKGROUND = "#303030"
+    GRAY_BORDER = "#525252"
+    STRONG_GRAY = "#c4c4c4"

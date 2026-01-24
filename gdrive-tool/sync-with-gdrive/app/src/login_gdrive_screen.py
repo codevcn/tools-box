@@ -37,7 +37,7 @@ class LoginGDriveScreen(QDialog):
         self._rclone_setup.done.connect(self._on_login_done)
         self._pending_remote_name: str | None = None
         self._action_btn_svg_pixmap_enabled = svg_to_pixmap(
-            get_svg_file_path("double_check_icon.svg")[0],
+            get_svg_file_path("double_check_icon")[0],
             30,
             None,
             "#000000",
@@ -45,7 +45,7 @@ class LoginGDriveScreen(QDialog):
             (0, 0, 8, 0),
         )
         self._action_btn_svg_pixmap_disabled = svg_to_pixmap(
-            get_svg_file_path("double_check_icon.svg")[0],
+            get_svg_file_path("double_check_icon")[0],
             30,
             None,
             "#b8b8b8",
@@ -224,7 +224,7 @@ class LoginGDriveScreen(QDialog):
                 title="Lỗi",
                 text=msg,
                 icon_pixmap=svg_to_pixmap(
-                    get_svg_file_path("warn_icon.svg")[0],
+                    get_svg_file_path("warn_icon")[0],
                     35,
                     None,
                     "#ff0000",
@@ -250,7 +250,7 @@ class LoginGDriveScreen(QDialog):
                 title="Lỗi",
                 text="Vui lòng nhập tên kho lưu trữ trước khi đăng nhập.",
                 icon_pixmap=svg_to_pixmap(
-                    get_svg_file_path("warn_icon.svg")[0],
+                    get_svg_file_path("warn_icon")[0],
                     35,
                     None,
                     "#ff0000",

@@ -1,7 +1,7 @@
 from pathlib import Path
 from typing import TypedDict
 from flask import json
-from utils.helpers import get_json_field_value
+from utils.helpers import get_json_field_value, set_json_field_value
 
 
 class ConfigSchema(TypedDict):
@@ -38,11 +38,11 @@ class DataManager:
 
     def get_last_gdrive_entered_dir(self) -> str | None:
         """Trả về gdrive root dir đã lưu (nếu có)."""
-        return get_json_field_value("last_gdrive_entered_dir", self.config_path)
+        return get_json_field_value("last_gdrive_entered_dir", self.config_path, True)
 
     def get_remotes_list(self) -> list[str]:
         """Trả về danh sách remotes đã cấu hình trong rclone."""
-        remotes = get_json_field_value("remotes", self.config_path)
+        remotes = get_json_field_value("remotes", self.config_path, True)
         if isinstance(remotes, list):
             return remotes
         return []
@@ -54,37 +54,21 @@ class DataManager:
 
     def get_active_remote(self) -> str | None:
         """Trả về remote đang được sử dụng (nếu có)."""
-        return get_json_field_value("active_remote", self.config_path)
+        return get_json_field_value("active_remote", self.config_path, True)
 
     def save_active_remote(self, remote_name: str) -> None:
         """Lưu remote đang được sử dụng."""
-        try:
-            if not self.config_path.exists():
-                data = {}
-            else:
-                with open(self.config_path, "r", encoding="utf-8") as f:
-                    data = json.load(f)
-            data["active_remote"] = remote_name
-            with open(self.config_path, "w", encoding="utf-8") as f:
-                json.dump(data, f, indent=4, ensure_ascii=False)
-        except Exception as e:
-            print(f">>> Error saving active remote: {e}")
-            raise e
+        set_json_field_value("active_remote", remote_name, self.config_path, True)
 
     def add_new_remote(self, remote_name: str) -> None:
         """Thêm remote mới vào danh sách remotes đã cấu hình."""
-        try:
-            if not self.config_path.exists():
-                data = {"remotes": []}
-            else:
-                with open(self.config_path, "r", encoding="utf-8") as f:
-                    data = json.load(f)
-            remotes = data.get("remotes", [])
-            if remote_name not in remotes:
-                remotes.append(remote_name)
-                data["remotes"] = remotes
-                with open(self.config_path, "w", encoding="utf-8") as f:
-                    json.dump(data, f, indent=4, ensure_ascii=False)
-        except Exception as e:
-            print(f">>> Error adding new remote: {e}")
-            raise e
+        remotes = self.get_remotes_list()
+        if remote_name not in remotes:
+            remotes.append(remote_name)
+            set_json_field_value("remotes", remotes, self.config_path, True)
+
+    def save_last_gdrive_entered_dir(self, gdrive_dir: str) -> None:
+        """Lưu gdrive root dir đã nhập gần nhất."""
+        set_json_field_value(
+            "last_gdrive_entered_dir", gdrive_dir, self.config_path, True
+        )

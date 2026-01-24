@@ -82,13 +82,15 @@ def extract_filename_with_ext(path: str) -> str:
     return Path(path).name
 
 
-def get_json_field_value(field_path: str, json_file_path: Path) -> Any:
+def get_json_field_value(
+    field_path: str, json_file_path: Path, ensure_json_path_exists: bool = False
+) -> Any:
     """
-    Lấy giá trị của một field từ file sync-with-gdrive.json.
+    Lấy giá trị của một field từ file json_file_path.
 
     Args:
         field_path: Đường dẫn đến field, phân cách bởi dấu chấm.
-                   VD: "sync_settings.include_patterns"
+            VD: "sync_settings.include_patterns"
 
     Returns:
         Giá trị của field hoặc None nếu không tìm thấy.
@@ -98,7 +100,7 @@ def get_json_field_value(field_path: str, json_file_path: Path) -> Any:
         - get_json_field_value("sync_settings.include_patterns") -> ["*"]
     """
     try:
-        if not json_file_path.exists():
+        if not ensure_json_path_exists and not json_file_path.exists():
             return None
 
         with open(json_file_path, "r", encoding="utf-8") as f:
@@ -114,8 +116,71 @@ def get_json_field_value(field_path: str, json_file_path: Path) -> Any:
                 return None
 
         return value
-    except Exception:
+    except Exception as e:
+        print(f">>> Error getting JSON field '{field_path}': {e}")
         return None
+
+
+def set_json_field_value(
+    field_path: str,
+    value: Any,
+    json_file_path: Path,
+    ensure_json_path_exists: bool = True,
+) -> bool:
+    """
+    Set giá trị cho một field trong file json_file_path.
+
+    Args:
+        field_path: Đường dẫn đến field, phân cách bởi dấu chấm.
+            VD: "sync_settings.include_patterns"
+        value: Giá trị cần set (có thể là bất kỳ kiểu dữ liệu nào: str, int, list, dict, etc.)
+        json_file_path: Path đến file JSON
+        ensure_json_path_exists: Nếu True, tạo file mới nếu chưa tồn tại. Nếu False và file không tồn tại, return False.
+
+    Returns:
+        True nếu set thành công, False nếu có lỗi.
+
+    Examples:
+        - set_json_field_value("active_remote", "my-drive", path) -> True
+        - set_json_field_value("sync_settings.include_patterns", ["*"], path) -> True
+        - set_json_field_value("user.preferences.theme", "dark", path) -> True
+    """
+    try:
+        data: dict = {}
+
+        # Nếu ko tham số ensure_json_path_exists và file ko tồn tại thì return False
+        if not ensure_json_path_exists and not json_file_path.exists():
+            raise FileNotFoundError("JSON file does not exist.")
+
+        with open(json_file_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+
+        # Navigate và tạo nested structure nếu cần
+        keys = field_path.split(".")
+        current = data
+
+        # Traverse đến key cuối cùng, tạo nested dict nếu cần
+        for i, key in enumerate(keys[:-1]):
+            if key not in current:
+                current[key] = {}
+            elif not isinstance(current[key], dict):
+                # Key đã tồn tại nhưng không phải dict -> không thể nested tiếp
+                return False
+            current = current[key]
+
+        # Set giá trị cho key cuối cùng
+        last_key = keys[-1]
+        current[last_key] = value
+
+        # Save lại file
+        with open(json_file_path, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=4, ensure_ascii=False)
+
+        return True
+
+    except Exception as e:
+        print(f">>> Error setting JSON field '{field_path}': {e}")
+        return False
 
 
 def svg_to_pixmap(
@@ -219,5 +284,24 @@ def get_svg_file_path(svg_name: str) -> tuple[str, str]:
     """Lấy đường dẫn đầy đủ đến file SVG trong thư mục assets."""
     src_dir = Path(__file__).resolve().parent.parent
     prefix_path = f"{src_dir}\\assets\\images\\svg"
-    svg = f"{prefix_path}\\{svg_name}"
+    svg = f"{prefix_path}\\{svg_name}.svg"
     return svg, prefix_path
+
+
+def get_svg_as_icon(
+    svg_name: str,
+    size: int,
+    fill_color: str | None = None,
+    stroke_color: str | None = None,
+    stroke_width: float | None = None,
+    margins: int | tuple[int, int, int, int] = 0,
+) -> QPixmap:
+    """Lấy QPixmap từ file SVG trong thư mục assets."""
+    return svg_to_pixmap(
+        get_svg_file_path(svg_name)[0],
+        size,
+        fill_color,
+        stroke_color,
+        stroke_width,
+        margins,
+    )
