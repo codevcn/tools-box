@@ -10,8 +10,11 @@ class CustomLabel(QLabel):
         parent=None,
         is_bold: bool = False,
         is_word_wrap: bool = False,
+        align: Qt.AlignmentFlag | None = None,
     ):
-        super().__init__(text, parent)
+        super().__init__("", parent)
+        self.setTextFormat(Qt.TextFormat.RichText)
+        self.setText(text)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         if is_bold:
             font = self.font()
@@ -19,6 +22,13 @@ class CustomLabel(QLabel):
             self.setFont(font)
         if is_word_wrap:
             self.setWordWrap(True)
+        if align:
+            self.setAlignment(align)
+
+    def set_font_size(self, font_size: int):
+        font = self.font()
+        font.setPointSize(font_size)
+        self.setFont(font)
 
 
 class AutoHeightLabel(QLabel):

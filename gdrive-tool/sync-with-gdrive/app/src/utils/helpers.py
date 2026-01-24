@@ -3,7 +3,7 @@ from pathlib import Path
 import os
 import json
 from typing import Iterable, Optional, Any
-from configs.configs import PathType, CODE_EXTENSIONS, MEDIA_EXTENSIONS
+from configs.configs import PATH_TYPE, CODE_EXTENSIONS, MEDIA_EXTENSIONS
 from PySide6.QtSvg import QSvgRenderer
 from PySide6.QtGui import QPixmap, QPainter
 from PySide6.QtCore import Qt, QRectF
@@ -31,7 +31,14 @@ def extract_common_folder_str(paths: Iterable[str]) -> str:
     return extract_common_folder(paths).as_posix()
 
 
-def detect_path_type(path_str: str) -> PathType:
+def detect_path_type(path_str: str) -> PATH_TYPE:
+    """
+    Phát hiện loại của path:
+    - "not_exists": nếu path không tồn tại
+    - "file": nếu là file
+    - "folder": nếu là folder
+    - "invalid": nếu không xác định được (symlink đặc biệt, socket, ...)
+    """
     try:
         path = Path(path_str)
 

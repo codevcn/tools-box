@@ -10,10 +10,13 @@ from PySide6.QtWidgets import (
     QSizePolicy,
     QFrame,
 )
+from PySide6.QtGui import QKeySequence, QShortcut
 from PySide6.QtCore import QProcess, QSize, Qt, QTimer
+from components.tooltip import CollisionConstraint, ToolTipBinder, ToolTipConfig
 from components.scrollable_text import ScrollableText
 from login_gdrive_screen import LoginGDriveScreen, LoginResult
-from components.popup import CustomPopup
+from active_remote_info import ActiveRemoteScreen
+from components.dialog import CustomDialog
 from components.divider import CustomDivider
 from utils.helpers import (
     detect_content_type_by_file_extension,
@@ -27,10 +30,9 @@ from utils.helpers import (
 from components.flow_layout import CustomFlowLayout
 from components.selected_file_box import FileInfoBox
 from components.label import CustomLabel
-from components.select_box import CustomSelectBox, SelectOption
 from workers.sync_worker import RcloneSyncWorker, SyncAction, SyncOptions
 from data.data_manager import ConfigSchema, DataManager
-from configs.configs import SyncError, ThemeColors
+from configs.configs import PATH_TYPE, SyncError, ThemeColors
 from components.button import CustomButton
 
 
@@ -44,7 +46,6 @@ class MainWindow(QWidget):
         self._root_layout: QVBoxLayout
         self._top_menu_layout: QHBoxLayout
         self._local_paths_list = local_paths
-        self._active_remote_select_box: CustomSelectBox
         self._gdrive_path_input: QLineEdit
         self._current_gdrive_path: str = ""
         self._active_remote: str
@@ -54,8 +55,10 @@ class MainWindow(QWidget):
         self._is_syncing: bool = False
         self._log_output: ScrollableText
         self._right_actions_layout: QHBoxLayout
+        self._active_remote_label: CustomLabel
         self._setup_ui()
         self._set_local_paths_list(local_paths)
+        self._add_catch_keyboard_shortcuts()
 
     def _set_local_paths_list(self, paths: list[str]) -> None:
         self._local_paths_list = paths
@@ -65,6 +68,28 @@ class MainWindow(QWidget):
         """Đóng ứng dụng."""
         QApplication.quit()
         sys.exit(0)
+
+    def _add_catch_keyboard_shortcuts(self) -> None:
+        """Bắt sự kiện nhấn các tổ hợp phím."""
+        # Ctrl + Q (thoát ứng dụng)
+        shortcut_ctrl_q = QShortcut(QKeySequence("Ctrl+Q"), self)
+        shortcut_ctrl_q.activated.connect(self._close_app)
+
+        # Alt + Q (thoát ứng dụng)
+        shortcut_alt_q = QShortcut(QKeySequence("Alt+Q"), self)
+        shortcut_alt_q.activated.connect(self._close_app)
+
+        # Ctrl + Enter (đồng bộ ngay)
+        shortcut_ctrl_enter = QShortcut(QKeySequence("Ctrl+Return"), self)
+        shortcut_ctrl_enter.activated.connect(self._on_sync_start)
+
+        # Ctrl + O (mở dialog chọn folder/tệp)
+        shortcut_ctrl_o = QShortcut(QKeySequence("Ctrl+O"), self)
+        shortcut_ctrl_o.activated.connect(self._browse_local_folder)
+
+        # Ctrl + I (mở settings)
+        shortcut_ctrl_i = QShortcut(QKeySequence("Ctrl+I"), self)
+        shortcut_ctrl_i.activated.connect(self._open_settings_screen)
 
     def _setup_ui(self) -> None:
         """Thiết lập giao diện người dùng."""
@@ -77,7 +102,7 @@ class MainWindow(QWidget):
             QVBoxLayout.SizeConstraint.SetMaximumSize,
             QVBoxLayout.SizeConstraint.SetFixedSize,
         )
-        root_layout.setContentsMargins(12, 8, 12, 12)
+        root_layout.setContentsMargins(12, 8, 12, 8)
         root_layout.setSpacing(4)
         self._root_layout = root_layout
 
@@ -98,7 +123,7 @@ class MainWindow(QWidget):
 
         # GDrive folder section
         gdrive_layout = self._create_gdrive_path_section(
-            "Đường dẫn thư mục đích trên Google Drive:",
+            "Đường dẫn thư mục đích trên kho lưu trữ:",
             margins=(6, 8, 0, 0),
         )
 
@@ -183,7 +208,7 @@ class MainWindow(QWidget):
         preview.setLayout(self.selected_docs_flow)
 
         # Thêm nhiều box để thấy wrap
-        items: list[tuple[str, str]] = []
+        path_objects: list[tuple[str, str, PATH_TYPE]] = []
         for path in self._local_paths_list:
             svg, prefix_path = get_svg_file_path("file_icon")
             path_type = detect_path_type(path)
@@ -193,17 +218,24 @@ class MainWindow(QWidget):
                 svg = f"{prefix_path}\\{content_type}_icon.svg"
             elif path_type == "folder":
                 svg = f"{prefix_path}\\folder_icon.svg"
-            items.append((svg, path))
+            path_objects.append((svg, path, path_type))
 
-        for svg, text in items:
-            self.selected_docs_flow.addWidget(
-                FileInfoBox(
-                    svg_path=svg,
-                    svg_fill_color=None,
-                    svg_stroke_color="#ffffff",
-                    text=extract_filename_with_ext(text),
-                )
+        for svg, path, path_type in path_objects:
+            file_info_box = FileInfoBox(
+                svg_path=svg,
+                svg_fill_color=None,
+                svg_stroke_color="#ffffff",
+                text=extract_filename_with_ext(path),
             )
+            ToolTipBinder(
+                file_info_box,
+                ToolTipConfig(
+                    text=f"<b>{'Thư mục' if path_type=='folder' else 'Tệp'}</b>: {path}",
+                    show_delay_ms=100,
+                    constrain_to=CollisionConstraint.SCREEN,
+                ),
+            )
+            self.selected_docs_flow.addWidget(file_info_box)
 
         if self._selected_docs_preview:
             self._selected_docs_layout.removeWidget(self._selected_docs_preview)
@@ -221,42 +253,75 @@ class MainWindow(QWidget):
         label = CustomLabel("Bạn đang đồng bộ lên kho lưu trữ:", is_bold=True)
         label.setContentsMargins(6, 0, 0, 0)
 
-        # Lấy danh sách remotes từ data manager
-        remotes = self._data_manager.get_remotes_list()
-
-        # Tạo options cho select box
-        options = [
-            SelectOption(
-                label=remote,
-                value=remote,
-                icon=get_svg_as_icon("gdrive_logo_icon", 18, None, "#ffffff", 2),
-            )
-            for remote in remotes
-        ]
-
-        # Tạo select box với active remote làm default
-        default_value = self._active_remote if hasattr(self, "_active_remote") else None
-        self._active_remote_select_box = CustomSelectBox(
-            options=options,
-            default_value=default_value,
-            placeholder="Chọn kho lưu trữ...",
+        # Tạo bar để hiển thị active remote
+        active_remote_bar = QFrame()
+        active_remote_bar.setCursor(Qt.CursorShape.PointingHandCursor)
+        active_remote_bar.setSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
         )
 
-        # Set margin cho select box
-        self._active_remote_select_box.setContentsMargins(0, 0, 0, 0)
-        self._active_remote_select_box.on_value_change(self._on_active_remote_change)
+        active_remote_layout = QHBoxLayout(active_remote_bar)
+        active_remote_layout.setContentsMargins(8, 4, 8, 6)
+        active_remote_layout.setSizeConstraints(
+            QHBoxLayout.SizeConstraint.SetMaximumSize,
+            QHBoxLayout.SizeConstraint.SetFixedSize,
+        )
+
+        # Icon
+        icon_label = CustomLabel()
+        icon_label.setPixmap(get_svg_as_icon("gdrive_logo_icon", 20, None, None, 3))
+        icon_label.setFixedSize(20, 20)
+        active_remote_layout.addWidget(icon_label)
+
+        # Text label
+        self._active_remote_label = CustomLabel("Chọn kho lưu trữ...")
+        self._active_remote_label.setStyleSheet("color: white;")
+        self._active_remote_label.set_font_size(16)
+        active_remote_layout.addWidget(self._active_remote_label, 1)
+
+        # Expand icon
+        expand_label = CustomLabel()
+        expand_label.setPixmap(
+            get_svg_as_icon("expand_icon", 20, "#ffffff", "#ffffff", 3)
+        )
+        expand_label.setFixedSize(20, 20)
+        expand_label.setStyleSheet("color: white;")
+        active_remote_layout.addWidget(expand_label)
+
+        # Style cho bar
+        active_remote_bar.setObjectName("ActiveRemoteBar")
+        active_remote_bar.setStyleSheet(
+            f"""
+            #ActiveRemoteBar {{
+                background-color: {ThemeColors.GRAY_BACKGROUND};
+                border: 1px solid {ThemeColors.GRAY_BORDER};
+                border-radius: 8px;
+            }}
+            #ActiveRemoteBar:hover {{
+                background-color: #3d3d3d;
+            }}
+        """
+        )
+
+        # Connect click event
+        active_remote_bar.mousePressEvent = lambda e: self._open_active_remote_screen()
 
         layout.addWidget(label)
-        layout.addWidget(self._active_remote_select_box)
+        layout.addWidget(active_remote_bar)
 
         return layout
 
-    # Callback khi value thay đổi
-    def _on_active_remote_change(self, value: str | None, option: SelectOption | None):
-        if value:
-            self._active_remote = value
-            # Lưu active remote vào data manager
-            self._data_manager.save_active_remote(value)
+    def _open_active_remote_screen(self):
+        """Mở window để chọn active remote"""
+        active_remote_screen = ActiveRemoteScreen(self)
+        active_remote_screen.remote_selected.connect(self._on_remote_selected)
+        active_remote_screen.exec()
+
+    def _on_remote_selected(self, remote_name: str):
+        """Callback khi user chọn remote từ window"""
+        self._active_remote = remote_name
+        self._active_remote_label.setText(remote_name)
+        print(f">>> Active remote changed to: {remote_name}")
 
     def _on_gdrive_path_input_enter_pressed(self) -> None:
         """Xử lý khi người dùng nhấn Enter trong input path."""
@@ -288,7 +353,13 @@ class MainWindow(QWidget):
                 border: 1px solid {ThemeColors.GRAY_BORDER};
                 border-bottom: 2px solid {ThemeColors.STRONG_GRAY};
                 border-radius: 8px;
-                padding: 4px 6px 6px;
+                padding: 4px 8px 6px;
+            }}
+            QLineEdit:hover {{
+                border-color: {ThemeColors.MAIN};
+            }}
+            QLineEdit:focus {{
+                border-color: {ThemeColors.MAIN};
             }}
             """
         )
@@ -355,8 +426,8 @@ class MainWindow(QWidget):
         log_layout.addWidget(self._log_output)
         return log_layout
 
-    def _append_log(self, text: str) -> None:
-        self._log_output.setText(f"{text}\n" + self._log_output.get_text())
+    def _write_log(self, text: str) -> None:
+        self._log_output.setText(f"{text}\n")
 
     def _render_sync_button_section(self) -> None:
         """Render nút đồng bộ và nút thoát."""
@@ -437,40 +508,29 @@ class MainWindow(QWidget):
 
     def _do_sync(self) -> None:
         """Thực hiện đồng bộ."""
-        try:
-            # Start sync with worker
-            options = SyncOptions(action=SyncAction.ONLY_UPLOAD)
+        # Start sync with worker
+        options = SyncOptions(action=SyncAction.ONLY_UPLOAD)
 
-            self._current_gdrive_path = self._gdrive_path_input.text().strip()
+        self._current_gdrive_path = self._gdrive_path_input.text().strip()
+        self._sync_worker = RcloneSyncWorker(
+            local_paths=self._local_paths_list,
+            gdrive_path=self._current_gdrive_path,
+            options=options,
+        )
 
-            print(f">>> Creating sync worker with paths: {self._local_paths_list}")
-            print(f">>> GDrive path: {self._current_gdrive_path}")
+        self._sync_worker.log.connect(self._write_log)
+        self._sync_worker.error.connect(self._on_sync_error)
+        self._sync_worker.done.connect(self._on_sync_finished)
+        self._sync_worker.progress.connect(self._on_sync_progress)
 
-            self._sync_worker = RcloneSyncWorker(
-                local_paths=self._local_paths_list,
-                gdrive_path=self._current_gdrive_path,
-                options=options,
-            )
-
-            self._sync_worker.log.connect(self._append_log)
-            self._sync_worker.error.connect(self._on_sync_error)
-            self._sync_worker.done.connect(self._on_sync_finished)
-
-            print(">>> Starting sync worker...")
-            self._sync_worker.start()
-        except Exception as e:
-            print(f">>> Exception in _do_sync: {e}")
-            import traceback
-
-            traceback.print_exc()
-            self._on_sync_error(f"Lỗi khi khởi tạo đồng bộ: {str(e)}")
+        self._sync_worker.start()
 
     def _on_sync_start(self) -> None:
         """Xử lý khi người dùng nhấn nút Đồng bộ."""
         # Validate inputs
         is_valid, error_msg, err_type = self._validate_inputs()
         if err_type == SyncError.NEED_LOGIN:
-            popup = CustomPopup(
+            popup = CustomDialog(
                 self,
                 title="Yêu cầu đăng nhập",
                 text=error_msg,
@@ -485,7 +545,7 @@ class MainWindow(QWidget):
             popup.exec_and_get()
             return
         elif not is_valid:
-            popup = CustomPopup(
+            popup = CustomDialog(
                 self,
                 title="Lỗi",
                 text=error_msg,
@@ -507,6 +567,12 @@ class MainWindow(QWidget):
 
         QTimer.singleShot(0, self._do_sync)
 
+    def _on_sync_progress(self, percent: float, status_text: str):
+        print(f">>> Sync progress: {percent}%, status: {status_text}")
+        # self.progressBar.setValue(int(percent))
+        # self.statusLabel.setText(status_text)
+        pass
+
     def _on_sync_finished(self, code: int, status: QProcess.ExitStatus) -> None:
         print(f">>> Sync finished with code={code}, status={status}")
         self._is_syncing = False
@@ -518,7 +584,7 @@ class MainWindow(QWidget):
         print(f">>> Sync error: {msg}")
         self._is_syncing = False
         self._render_sync_button_section()
-        popup = CustomPopup(
+        popup = CustomDialog(
             self,
             title="Lỗi đồng bộ",
             text=msg,
@@ -533,16 +599,25 @@ class MainWindow(QWidget):
         popup.exec_and_get()
         pass
 
-    def _render_sync_data(self, saved_user_data: ConfigSchema) -> None:
+    def _open_settings_screen(self) -> None:
+        """Mở window Settings."""
+        print(">>> Open settings screen")
+        pass
+
+    def _render_user_data(self, saved_user_data: ConfigSchema) -> None:
         """Hiển thị dữ liệu sync đã lưu."""
         active_remote = saved_user_data.get("active_remote")
         if saved_user_data.get("remotes") and active_remote:
-            self._active_remote_select_box.set_active_value(active_remote)
+            # Update active remote bar với remote name
+            self._active_remote = active_remote
+            self._active_remote_label.setText(active_remote)
+
             # Hiển thị nút Settings và gdrive root dir đã lưu (nếu có)
             last_gdrive_entered_dir = saved_user_data.get("last_gdrive_entered_dir")
             if last_gdrive_entered_dir:
                 self._gdrive_path_input.setText(last_gdrive_entered_dir)
             settings_btn = CustomButton()
+            settings_btn.on_clicked(self._open_settings_screen)
             settings_btn.setIcon(
                 svg_to_pixmap(
                     get_svg_file_path("settings_icon")[0],
@@ -586,7 +661,7 @@ class MainWindow(QWidget):
                 """
             )
             login_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-            login_btn.clicked.connect(self._do_login_gdrive)
+            login_btn.on_clicked(self._do_login_gdrive)
             login_btn_font = login_btn.font()
             login_btn_font.setBold(True)
             login_btn_font.setPointSize(12)
@@ -596,7 +671,7 @@ class MainWindow(QWidget):
 
     def _load_saved_user_data(self) -> None:
         """Tải dữ liệu người dùng đã lưu (nếu có)."""
-        self._render_sync_data(self._data_manager.get_entire_config())
+        self._render_user_data(self._data_manager.get_entire_config())
 
 
 def init_app() -> None:

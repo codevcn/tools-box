@@ -1,7 +1,7 @@
 from typing import Literal
 from enum import Enum
 
-PathType = Literal["file", "folder", "not_exists", "invalid"]
+PATH_TYPE = Literal["file", "folder", "not_exists", "invalid"]
 
 CODE_EXTENSIONS = {
     "py": "code",
@@ -64,4 +64,9 @@ class ThemeColors:
     DARK_MAIN = "#21c1b3"
     GRAY_BACKGROUND = "#303030"
     GRAY_BORDER = "#525252"
+    GRAY_HOVER = "#5e5e5e4d"
     STRONG_GRAY = "#c4c4c4"
+    SUCCESS = "#4BB543"
+    ERROR = "#FF3333"
+    WARNING = "#FFAA00"
+    INFO = "#3399FF"

@@ -12,7 +12,7 @@ ButtonCallback = Callable[[], None]
 
 
 @dataclass(frozen=True)
-class PopupButtonSpec:
+class DialogButtonSpec:
     key: str
     text: str
     role: QMessageBox.ButtonRole = QMessageBox.ButtonRole.ActionRole
@@ -21,7 +21,7 @@ class PopupButtonSpec:
     closes: bool = True  # True: auto close popup after click
 
 
-class CustomPopup(QObject):
+class CustomDialog(QObject):
     """
     Wrapper cho QMessageBox để:
     - Custom buttons (text/icon/role)
@@ -65,7 +65,7 @@ class CustomPopup(QObject):
         self._customize_layout()
 
         self._buttons: Dict[str, QPushButton] = {}
-        self._specs: Dict[str, PopupButtonSpec] = {}
+        self._specs: Dict[str, DialogButtonSpec] = {}
         self._result_key: Optional[str] = None
 
         # Nếu user đóng bằng X, treat như cancel (nếu có)
@@ -109,7 +109,7 @@ class CustomPopup(QObject):
     def set_icon_pixmap(self, pixmap: QPixmap) -> None:
         self._msg.setIconPixmap(pixmap)
 
-    def add_button(self, spec: PopupButtonSpec) -> QPushButton:
+    def add_button(self, spec: DialogButtonSpec) -> QPushButton:
         if spec.key in self._buttons:
             raise ValueError(f"Duplicate button key: {spec.key}")
 
