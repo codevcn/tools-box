@@ -1,6 +1,6 @@
 {
-  "remotes": [],
-  "active_remote": null,
+  "remotes": ["kkk"],
+  "active_remote": "kkk",
   "last_sync": null,
-  "saved_gdrive_root_dir": null
+  "last_gdrive_entered_dir": null
 }

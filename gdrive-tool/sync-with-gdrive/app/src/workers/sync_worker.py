@@ -1,161 +1,230 @@
 from __future__ import annotations
+
 import os
 import shutil
 import tempfile
+from dataclasses import dataclass
+from enum import Enum
 from pathlib import Path
-from PySide6.QtCore import QThread, Signal, QProcess
+
+from PySide6.QtCore import QObject, Signal, QProcess
+from data.data_manager import DataManager
 
 
-class RcloneSyncWorker(QThread):
-    """Worker thread để chạy rclone (copy/sync) không block UI."""
+class SyncAction(str, Enum):
+    ONLY_UPLOAD = "only_upload"  # rclone copy
+    DELETE_AND_SYNC = "delete_and_sync"  # rclone sync (may delete in destination)
+
+
+@dataclass(frozen=True)
+class SyncOptions:
+    action: SyncAction = SyncAction.ONLY_UPLOAD
+    copy_links: bool = True  # staging may use symlink -> rclone should follow
+    show_progress: bool = True  # adds --progress
+    extra_args: list[str] | None = None  # for advanced flags if needed
+
+
+class RcloneSyncWorker(QObject):
+    """
+    Worker chạy rclone bằng QProcess (async, không block UI).
+
+    - local_paths: list file/folder (mix được)
+    - remote_name: tên remote rclone (vd: "mydrive")
+    - gdrive_path: path folder đích trên drive (vd: "MyFolder/SubFolder")
+    """
 
     log = Signal(str)
+    error = Signal(str)
     done = Signal(int, QProcess.ExitStatus)
 
-    def __init__(self, local_paths: list[str], gdrive_path: str):
-        super().__init__()
-        self.local_paths = local_paths
-        self.gdrive_path = gdrive_path
-        self.rclone_exe = (
-            r"D:\Programs-ver-Later\rclone-v1.72.1-windows-amd64\rclone.exe"
-        )
-        self.remote_name = "gdrive"
-        self.prefer_symlink = True
-        self._proc: QProcess | None = None
-        self._staging_dir: Path | None = None
+    def __init__(
+        self,
+        local_paths: list[str],
+        gdrive_path: str,
+        options: SyncOptions | None = None,
+        parent: QObject | None = None,
+    ) -> None:
+        super().__init__(parent)
+        self._data_manager: DataManager = DataManager()
 
-    # -----------------------------
-    # Public API
-    # -----------------------------
-    def sync_multi_entries(self) -> None:
-        """Only upload (không xóa gì ở đích): gom staging rồi rclone copy 1 lần."""
-        try:
-            self._start_copy_with_staging()
-        except Exception as e:
-            self.log.emit(f"ERROR: {e}")
-            self.done.emit(1, QProcess.ExitStatus.CrashExit)
+        active_remote = self._data_manager.get_active_remote()
+        if not active_remote:
+            raise ValueError("No active remote found. Please login first.")
 
-    # -----------------------------
-    # Internal helpers
-    # -----------------------------
-    def _start_copy_with_staging(self) -> None:
-        srcs = self._normalize_existing_paths(self.local_paths)
-        if not srcs:
-            self.log.emit("No valid local paths to upload.")
-            self.done.emit(0, QProcess.ExitStatus.NormalExit)
+        self._local_paths = [str(p) for p in local_paths]
+        self._active_remote = active_remote
+        self._gdrive_path = gdrive_path.strip().strip("/")
+
+        self._options = options or SyncOptions()
+
+        self._process: QProcess | None = None
+        self._staging_dir: str | None = None
+        self._running: bool = False
+
+    # -------- Public API --------
+    def start(self) -> None:
+        """Bắt đầu sync/copy."""
+        if self._running:
+            self.log.emit(">>> Sync already running.")
             return
 
-        staging_dir = Path(tempfile.mkdtemp(prefix="rclone_staging_"))
-        self._staging_dir = staging_dir
+        try:
+            self._validate_inputs()
+        except Exception as e:
+            self.error.emit(str(e))
+            self.done.emit(1, QProcess.ExitStatus.CrashExit)
+            return
+
+        self._running = True
 
         try:
-            for src in srcs:
-                self._stage_entry(src, staging_dir, prefer_symlink=self.prefer_symlink)
-        except Exception:
-            shutil.rmtree(staging_dir, ignore_errors=True)
-            self._staging_dir = None
-            raise
+            self._staging_dir = tempfile.mkdtemp(prefix="sync_with_gdrive_")
+            self.log.emit(f">>> staging: {self._staging_dir}")
 
-        dest_remote = self._build_dest_remote(self.remote_name, self.gdrive_path)
+            self._prepare_staging(self._staging_dir)
 
-        args = [
-            "copy",
-            str(staging_dir),
-            dest_remote,
-            "--copy-links",  # dereference symlink (nếu staging dùng symlink)
-            "--progress",
-        ]
+            self._run_rclone(self._staging_dir)
+
+        except Exception as e:
+            self._running = False
+            self._cleanup_staging()
+            self.error.emit(str(e))
+            self.done.emit(1, QProcess.ExitStatus.CrashExit)
+
+    def cancel(self) -> None:
+        """Hủy tiến trình rclone nếu đang chạy."""
+        if self._process and self._process.state() != QProcess.ProcessState.NotRunning:
+            self.log.emit(">>> Cancelling rclone process...")
+            self._process.kill()
+
+    # -------- Internal helpers --------
+    def _validate_inputs(self) -> None:
+        if not self._active_remote:
+            raise ValueError(
+                "Remote name is empty. Please login/select an active remote."
+            )
+
+        if not self._gdrive_path:
+            raise ValueError("Google Drive destination path is empty.")
+
+        if not self._local_paths:
+            raise ValueError("No local paths to sync.")
+
+        for p in self._local_paths:
+            if not Path(p).exists():
+                raise FileNotFoundError(f"Local path does not exist: {p}")
+
+    def _prepare_staging(self, staging_dir: str) -> None:
+        """
+        Tạo 1 thư mục staging chứa "nhiều entry" (file/folder) ở root.
+        Ưu tiên symlink để nhanh; nếu fail (Windows policy/permission) thì fallback copy.
+        """
+        used_names: set[str] = set()
+
+        def unique_name(name: str) -> str:
+            base = name
+            i = 1
+            while name in used_names:
+                name = f"{base} ({i})"
+                i += 1
+            used_names.add(name)
+            return name
+
+        for src in self._local_paths:
+            src_path = Path(src)
+            entry_name = unique_name(src_path.name)
+            dst_path = Path(staging_dir) / entry_name
+
+            # Try symlink first
+            try:
+                if src_path.is_dir():
+                    os.symlink(str(src_path), str(dst_path), target_is_directory=True)
+                else:
+                    os.symlink(str(src_path), str(dst_path), target_is_directory=False)
+
+                self.log.emit(f">>> link: {src_path} -> {dst_path}")
+                continue
+            except Exception:
+                # Fallback copy
+                pass
+
+            if src_path.is_dir():
+                self.log.emit(f">>> copy dir: {src_path} -> {dst_path}")
+                shutil.copytree(src_path, dst_path)
+            else:
+                self.log.emit(f">>> copy file: {src_path} -> {dst_path}")
+                dst_path.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(src_path, dst_path)
+
+    def _run_rclone(self, staging_dir: str) -> None:
+        # Choose command by action
+        cmd = "copy" if self._options.action == SyncAction.ONLY_UPLOAD else "sync"
+
+        dest = f"{self._active_remote}:{self._gdrive_path}"
+
+        args: list[str] = [cmd, staging_dir, dest]
+
+        if self._options.copy_links:
+            # follow symlinks
+            args.append("--copy-links")
+
+        if self._options.show_progress:
+            args.append("--progress")
+
+        if self._options.extra_args:
+            args.extend(self._options.extra_args)
+
+        self.log.emit(f">>> rclone {cmd}: {staging_dir} -> {dest}")
 
         proc = QProcess(self)
-        self._proc = proc
-        proc.setProgram(self.rclone_exe)
+        self._process = proc
+
+        proc.setProgram("rclone")
         proc.setArguments(args)
-        proc.setProcessChannelMode(QProcess.ProcessChannelMode.MergedChannels)
 
-        self.log.emit(f">>> STAGING: {staging_dir}")
-        self.log.emit(">>> CMD: " + self._format_cmd(self.rclone_exe, args))
-
-        proc.readyReadStandardOutput.connect(self._on_ready_read)
-        proc.finished.connect(self._on_finished_cleanup)
+        proc.readyReadStandardOutput.connect(self._on_stdout)
+        proc.readyReadStandardError.connect(self._on_stderr)
+        proc.finished.connect(self._on_finished)
 
         proc.start()
 
-    def _normalize_existing_paths(self, local_paths: list[str]) -> list[Path]:
-        srcs: list[Path] = []
-        for p in local_paths:
-            if not p:
-                continue
-            pp = Path(p).expanduser()
-            if pp.exists():
-                srcs.append(pp)
-        return srcs
+        if not proc.waitForStarted(3000):
+            raise RuntimeError(
+                "Failed to start rclone process. Is rclone installed and in PATH?"
+            )
 
-    def _stage_entry(
-        self, src: Path, staging_dir: Path, *, prefer_symlink: bool
-    ) -> None:
-        dest = self._unique_dest_path(staging_dir, src.name)
-
-        if prefer_symlink:
-            try:
-                if src.is_dir():
-                    os.symlink(src, dest, target_is_directory=True)
-                else:
-                    os.symlink(src, dest)
-                return
-            except OSError as e:
-                self.log.emit(f"Symlink failed for {src} -> fallback copy. ({e})")
-
-        # fallback copy
-        if src.is_dir():
-            shutil.copytree(src, dest)
-        else:
-            shutil.copy2(src, dest)
-
-    def _unique_dest_path(self, staging_dir: Path, name: str) -> Path:
-        dest = staging_dir / name
-        if not dest.exists():
-            return dest
-
-        # tránh trùng tên: name_2, name_3...
-        stem = Path(name).stem
-        suffix = Path(name).suffix
-        i = 2
-        while (staging_dir / f"{stem}_{i}{suffix}").exists():
-            i += 1
-        return staging_dir / f"{stem}_{i}{suffix}"
-
-    def _build_dest_remote(self, remote_name: str, gdrive_path: str) -> str:
-        gdrive_path_norm = gdrive_path.strip().strip("/").strip("\\")
-        return (
-            f"{remote_name}:{gdrive_path_norm}"
-            if gdrive_path_norm
-            else f"{remote_name}:"
-        )
-
-    def _format_cmd(self, exe: str, args: list[str]) -> str:
-        def q(a: str) -> str:
-            return f'"{a}"' if " " in a else a
-
-        return q(exe) + " " + " ".join(q(a) for a in args)
-
-    # -----------------------------
-    # QProcess slots
-    # -----------------------------
-    def _on_ready_read(self) -> None:
-        if not self._proc:
+    def _on_stdout(self) -> None:
+        if not self._process:
             return
-
-        raw = self._proc.readAllStandardOutput()  # QByteArray
-        text = raw.toStdString()  # ✅ Qt-native, no typing drama
-
-        if text:
+        text = bytes(self._process.readAllStandardOutput().data()).decode(
+            errors="replace"
+        )
+        if text.strip():
             self.log.emit(text.rstrip())
 
-    def _on_finished_cleanup(self, code: int, status: QProcess.ExitStatus) -> None:
-        if self._staging_dir:
-            shutil.rmtree(self._staging_dir, ignore_errors=True)
-            self.log.emit(f">>> Cleaned staging: {self._staging_dir}")
-            self._staging_dir = None
+    def _on_stderr(self) -> None:
+        if not self._process:
+            return
+        text = bytes(self._process.readAllStandardError().data()).decode(
+            errors="replace"
+        )
+        if text.strip():
+            # rclone often prints progress/info to stderr too
+            self.log.emit(text.rstrip())
 
-        self.done.emit(code, status)
-        self._proc = None
+    def _on_finished(self, exit_code: int, exit_status: QProcess.ExitStatus) -> None:
+        self.log.emit(
+            f">>> rclone finished: exit_code={exit_code}, status={exit_status}"
+        )
+        self._running = False
+        self._cleanup_staging()
+        self.done.emit(exit_code, exit_status)
+
+    def _cleanup_staging(self) -> None:
+        if not self._staging_dir:
+            return
+        try:
+            shutil.rmtree(self._staging_dir, ignore_errors=True)
+            self.log.emit(f">>> cleanup staging: {self._staging_dir}")
+        finally:
+            self._staging_dir = None

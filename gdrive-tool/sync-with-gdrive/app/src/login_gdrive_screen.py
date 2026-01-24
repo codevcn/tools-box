@@ -6,7 +6,7 @@ from PySide6.QtWidgets import (
     QSizePolicy,
     QLayout,
 )
-from PySide6.QtCore import Qt, QObject, Signal, QProcess, QSize
+from PySide6.QtCore import Qt, QSize, Signal
 from components.popup import CustomPopup
 from data.data_manager import DataManager
 from utils.helpers import get_svg_file_path, svg_to_pixmap
@@ -14,83 +14,44 @@ from configs.configs import ThemeColors
 from components.label import AutoHeightLabel, CustomLabel
 from PySide6.QtGui import QFontMetrics
 from components.button import CustomButton
+from workers.authorize_gdrive_worker import RcloneDriveSetup
+from enum import Enum
 
 
-class RcloneDriveSetup(QObject):
-    log = Signal(str)
-    done = Signal(bool, str)  # (ok, message)
-
-    def __init__(self, rclone_exe: str = "rclone", parent=None):
-        super().__init__(parent)
-        self.rclone_exe = rclone_exe
-        self.proc = QProcess(self)
-        self.proc.setProcessChannelMode(QProcess.ProcessChannelMode.MergedChannels)
-
-        self.proc.readyReadStandardOutput.connect(self._on_ready_read)
-        self.proc.finished.connect(self._on_finished)
-
-        self._queue: list[list[str]] = []
-        self._current_step = ""
-
-    def setup_drive_remote(self, remote_name: str, *, scope: str = "drive") -> None:
-        # tạo remote (không token)
-        # rồi reconnect để rclone tự login + lưu token
-        self._queue = [
-            ["config", "create", remote_name, "drive", f"scope={scope}"],
-            ["config", "reconnect", f"{remote_name}:"],
-        ]
-        self._run_next()
-
-    def _run_next(self) -> None:
-        if not self._queue:
-            self.done.emit(True, "Remote đã được tạo và đăng nhập thành công.")
-            return
-
-        args = self._queue.pop(0)
-        self._current_step = " ".join(args)
-        self.log.emit(f">>> rclone {self._current_step}")
-        self.proc.start(self.rclone_exe, args)
-
-        if not self.proc.waitForStarted(3000):
-            self.done.emit(
-                False, "Không chạy được rclone. Kiểm tra PATH hoặc rclone_exe."
-            )
-
-    def _on_ready_read(self) -> None:
-        text = bytes(self.proc.readAllStandardOutput().data()).decode(
-            "utf-8", errors="replace"
-        )
-        if not text.strip():
-            return
-        self.log.emit(f">>> {text.rstrip()}")
-        # detect câu hỏi refresh token từ rclone
-        if "Already have a token - refresh?" in text:
-            self.log.emit(">>> Auto-answer: Yes (refresh token)")
-            self.proc.write(b"y\n")
-
-    def _on_finished(self, exit_code: int, _status) -> None:
-        if exit_code != 0:
-            # lỗi khi chạy step hiện tại
-            self.done.emit(
-                False,
-                f"Lỗi khi chạy: rclone {self._current_step} (exit_code={exit_code})",
-            )
-            self._queue = []
-        else:
-            # chạy step tiếp theo
-            self._run_next()
+class LoginResult(Enum):
+    SUCCESS = 1  # user cấp quyền thành công
+    CANCELLED = 2  # user hủy quá trình login
+    INTERRUPTED = 3  # user đóng tab trình duyệt trong quá trình login
 
 
 class LoginGDriveScreen(QDialog):
+    login_result = Signal(LoginResult, str, str)  # (result, remote_name, error_msg)
+
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.data_manager: DataManager = DataManager()
-        self.remote_name_input: QLineEdit
-        self.action_button: CustomButton
-        self.rclone_setup: RcloneDriveSetup = RcloneDriveSetup(parent=self)
-        self.rclone_setup.log.connect(self._on_login_log)
-        self.rclone_setup.done.connect(self._on_login_done)
+        self._data_manager: DataManager = DataManager()
+        self._remote_name_input: QLineEdit
+        self._action_button: CustomButton
+        self._rclone_setup: RcloneDriveSetup = RcloneDriveSetup(parent=self)
+        self._rclone_setup.log.connect(self._on_login_log)
+        self._rclone_setup.done.connect(self._on_login_done)
         self._pending_remote_name: str | None = None
+        self._action_btn_svg_pixmap_enabled = svg_to_pixmap(
+            get_svg_file_path("double_check_icon.svg")[0],
+            30,
+            None,
+            "#000000",
+            3,
+            (0, 0, 8, 0),
+        )
+        self._action_btn_svg_pixmap_disabled = svg_to_pixmap(
+            get_svg_file_path("double_check_icon.svg")[0],
+            30,
+            None,
+            "#b8b8b8",
+            3,
+            (0, 0, 8, 0),
+        )
         self._setup_ui()
 
     def _setup_ui(self) -> None:
@@ -146,8 +107,8 @@ class LoginGDriveScreen(QDialog):
         layout.setContentsMargins(4, 4, 4, 4)
 
         description = AutoHeightLabel(
-            "Giải thích: Tên của kho lưu trữ là 1 văn bản giúp bạn phân biệt các tài khoản Google Drive "
-            "với nhau nếu bạn có nhiều tài khoản Google Drive. Ví dụ: bạn có 1 tài khoản Google Drive A "
+            "Giải thích: Tên của kho lưu trữ giúp bạn phân biệt các tài khoản Google Drive với nhau "
+            "nếu bạn có nhiều tài khoản Google Drive. Ví dụ: bạn có 1 tài khoản Google Drive A "
             "và 1 tài khoản Google Drive B và nhiều tài khoản Google Drive khác nữa."
         )
         description.setStyleSheet("color: #000000; background-color: transparent;")
@@ -160,8 +121,8 @@ class LoginGDriveScreen(QDialog):
     def _handle_input_change(self, text: str) -> None:
         """Xử lý khi người dùng thay đổi nội dung trong ô nhập."""
         if text.strip():
-            self.action_button.setEnabled(True)
-            self.action_button.setStyleSheet(
+            self._action_button.setEnabled(True)
+            self._action_button.setStyleSheet(
                 f"""
                 CustomButton {{
                     background-color: {ThemeColors.MAIN};
@@ -177,19 +138,10 @@ class LoginGDriveScreen(QDialog):
                 }}
             """
             )
-            self.action_button.setIcon(
-                svg_to_pixmap(
-                    get_svg_file_path("double_check_icon.svg")[0],
-                    30,
-                    None,
-                    "#000000",
-                    3,
-                    (0, 0, 8, 0),
-                )
-            )
+            self._action_button.setIcon(self._action_btn_svg_pixmap_enabled)
         else:
-            self.action_button.setEnabled(False)
-            self.action_button.setStyleSheet(
+            self._action_button.setEnabled(False)
+            self._action_button.setStyleSheet(
                 """
                 CustomButton {
                     background-color: #616060;
@@ -199,16 +151,7 @@ class LoginGDriveScreen(QDialog):
                 }
             """
             )
-            self.action_button.setIcon(
-                svg_to_pixmap(
-                    get_svg_file_path("double_check_icon.svg")[0],
-                    30,
-                    None,
-                    "#b8b8b8",
-                    3,
-                    (0, 0, 8, 0),
-                )
-            )
+            self._action_button.setIcon(self._action_btn_svg_pixmap_disabled)
 
     def _create_input_section(self) -> QVBoxLayout:
         """Tạo section nhập tên remote."""
@@ -222,12 +165,12 @@ class LoginGDriveScreen(QDialog):
         font.setBold(True)
         label.setFont(font)
 
-        self.remote_name_input = QLineEdit()
-        self.remote_name_input.textChanged.connect(self._handle_input_change)
-        self.remote_name_input.setPlaceholderText(
-            "Ví dụ: Drive của tôi / Google Drive A / google-drive-a..."
+        self._remote_name_input = QLineEdit()
+        self._remote_name_input.textChanged.connect(self._handle_input_change)
+        self._remote_name_input.setPlaceholderText(
+            "Ví dụ: Drive của tôi hoặc Google Drive A hoặc google-drive-a..."
         )
-        self.remote_name_input.setStyleSheet(
+        self._remote_name_input.setStyleSheet(
             f"""
             QLineEdit {{
                 padding: 8px;
@@ -241,7 +184,7 @@ class LoginGDriveScreen(QDialog):
         )
 
         layout.addWidget(label)
-        layout.addWidget(self.remote_name_input)
+        layout.addWidget(self._remote_name_input)
 
         return layout
 
@@ -249,23 +192,23 @@ class LoginGDriveScreen(QDialog):
         """Tạo section với nút hành động."""
         layout = QVBoxLayout()
 
-        self.action_button = CustomButton("Tiến hành đăng nhập", default_enabled=False)
-        self.action_button.setFixedHeight(44)
-        self.action_button.clicked.connect(self._on_login_start)
+        self._action_button = CustomButton("Tiến hành đăng nhập", default_enabled=False)
+        self._action_button.setFixedHeight(44)
+        self._action_button.clicked.connect(self._on_login_start)
         # Style cho nút
         self._handle_input_change("")
-        self.action_button.setIconSize(QSize(30, 30))
-        font = self.action_button.font()
+        self._action_button.setIconSize(QSize(30, 30))
+        font = self._action_button.font()
         font.setBold(True)
-        self.action_button.setFont(font)
+        self._action_button.setFont(font)
 
-        layout.addWidget(self.action_button)
+        layout.addWidget(self._action_button)
         return layout
 
     def _do_save_remote_data(self, remote_name: str) -> None:
         """Lưu remote data do app quản lý (KHÔNG token)."""
-        self.data_manager.add_new_remote(remote_name)
-        self.data_manager.save_active_remote(remote_name)
+        self._data_manager.add_new_remote(remote_name)
+        self._data_manager.save_active_remote(remote_name)
 
     def _on_login_log(self, text: str):
         print(f">>> rclone log: {text}")
@@ -273,6 +216,7 @@ class LoginGDriveScreen(QDialog):
     def _on_login_done(self, ok: bool, msg: str):
         if ok and self._pending_remote_name:
             self._do_save_remote_data(self._pending_remote_name)
+            self.login_result.emit(LoginResult.SUCCESS, self._pending_remote_name, "")
             self.accept()
         else:
             popup = CustomPopup(
@@ -288,17 +232,17 @@ class LoginGDriveScreen(QDialog):
                 ),
             )
             popup.exec_and_get()
-            self._pending_remote_name = None
-            self.reject()
-        print(f">>> rclone done: ok={ok}, msg={msg}")
+        print(
+            f">>> rclone done: ok={ok}, remote={self._pending_remote_name}, msg={msg}"
+        )
 
     def _do_login(self, remote_name: str) -> None:
         """Bắt đầu quá trình đăng nhập Google Drive qua rclone."""
-        self.rclone_setup.setup_drive_remote(remote_name, scope="drive")
+        self._rclone_setup.setup_drive_remote(remote_name, scope="drive")
 
     def _on_login_start(self) -> None:
         """Xử lý khi người dùng nhấn nút đăng nhập."""
-        self._pending_remote_name = self.remote_name_input.text().strip()
+        self._pending_remote_name = self._remote_name_input.text().strip()
 
         if not self._pending_remote_name:
             popup = CustomPopup(
@@ -317,3 +261,9 @@ class LoginGDriveScreen(QDialog):
             return
 
         self._do_login(self._pending_remote_name)
+
+    def closeEvent(self, event):
+        """Xử lý khi dialog bị đóng (user nhấn nút đóng)."""
+        if self._rclone_setup.is_running():
+            self._rclone_setup.cancel_process(wait_ms=200)
+        event.accept()

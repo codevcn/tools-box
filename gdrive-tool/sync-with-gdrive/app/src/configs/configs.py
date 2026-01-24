@@ -55,9 +55,11 @@ class SyncError(Enum):
     NONE = 1
     COMMON = 2
     NEED_LOGIN = 3
+    INTERNAL = 4
 
 
 class ThemeColors:
     MAIN = "#00ddca"
     LIGHT_MAIN = "#74e5db"
     DARK_MAIN = "#21c1b3"
+    GRAY_BACKGROUND = "#303030"

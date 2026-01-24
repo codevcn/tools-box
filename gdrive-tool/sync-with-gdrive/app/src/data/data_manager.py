@@ -1,15 +1,44 @@
 from pathlib import Path
+from typing import TypedDict
 from flask import json
 from utils.helpers import get_json_field_value
+
+
+class ConfigSchema(TypedDict):
+    remotes: list[str]
+    active_remote: str | None
+    last_sync: str | None
+    last_gdrive_entered_dir: str | None
 
 
 class DataManager:
     def __init__(self):
         self.config_path = Path(__file__).parent / "sync-with-gdrive.json"
 
-    def get_saved_gdrive_root_dir(self) -> str | None:
+    def get_entire_config(self) -> ConfigSchema:
+        """Lấy toàn bộ nội dung file cấu hình sync-with-gdrive.json dưới dạng dict."""
+        try:
+            if not self.config_path.exists():
+                return ConfigSchema(
+                    remotes=[],
+                    active_remote=None,
+                    last_sync=None,
+                    last_gdrive_entered_dir=None,
+                )
+            with open(self.config_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            return data
+        except Exception:
+            return ConfigSchema(
+                remotes=[],
+                active_remote=None,
+                last_sync=None,
+                last_gdrive_entered_dir=None,
+            )
+
+    def get_last_gdrive_entered_dir(self) -> str | None:
         """Trả về gdrive root dir đã lưu (nếu có)."""
-        return get_json_field_value("saved_gdrive_root_dir", self.config_path)
+        return get_json_field_value("last_gdrive_entered_dir", self.config_path)
 
     def get_remotes_list(self) -> list[str]:
         """Trả về danh sách remotes đã cấu hình trong rclone."""
