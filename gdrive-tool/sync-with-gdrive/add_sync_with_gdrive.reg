@@ -5,11 +5,11 @@ Windows Registry Editor Version 5.00
 ; ==========================================
 [HKEY_CURRENT_USER\Software\Classes\*\shell\SyncWithGDrive]
 @="Sync with Google Drive"
-"Icon"="D:\\D-Documents\\TOOLs\\gdrive-tool\\sync-with-gdrive\\app.ico"
+"Icon"="D:\\D-Documents\\TOOLs\\gdrive-tool\\sync-with-gdrive\\app_logo.ico"
 "MultiSelectModel"="Player"
 
 [HKEY_CURRENT_USER\Software\Classes\*\shell\SyncWithGDrive\command]
-@="\"D:\\Python-3-12\\python.exe\" \"D:\\D-Documents\\TOOLs\\gdrive-tool\\sync-with-gdrive\\run_app.py\" \"%1\""
+@="\"D:\\Python-3-12\\python.exe\" \"D:\\D-Documents\\TOOLs\\gdrive-tool\\sync-with-gdrive\\run_app_multi.py\" \"%1\""
 
 
 ; ==========================================
@@ -17,11 +17,11 @@ Windows Registry Editor Version 5.00
 ; ==========================================
 [HKEY_CURRENT_USER\Software\Classes\Directory\shell\SyncWithGDrive]
 @="Sync with Google Drive"
-"Icon"="D:\\D-Documents\\TOOLs\\gdrive-tool\\sync-with-gdrive\\app.ico"
+"Icon"="D:\\D-Documents\\TOOLs\\gdrive-tool\\sync-with-gdrive\\app_logo.ico"
 "MultiSelectModel"="Player"
 
 [HKEY_CURRENT_USER\Software\Classes\Directory\shell\SyncWithGDrive\command]
-@="\"D:\\Python-3-12\\python.exe\" \"D:\\D-Documents\\TOOLs\\gdrive-tool\\sync-with-gdrive\\run_app.py\" \"%1\""
+@="\"D:\\Python-3-12\\python.exe\" \"D:\\D-Documents\\TOOLs\\gdrive-tool\\sync-with-gdrive\\run_app_multi.py\" \"%1\""
 
 
 ; ==========================================
@@ -30,8 +30,8 @@ Windows Registry Editor Version 5.00
 ; ==========================================
 [HKEY_CURRENT_USER\Software\Classes\Directory\Background\shell\SyncWithGDrive]
 @="Sync with Google Drive"
-"Icon"="D:\\D-Documents\\TOOLs\\gdrive-tool\\sync-with-gdrive\\app.ico"
+"Icon"="D:\\D-Documents\\TOOLs\\gdrive-tool\\sync-with-gdrive\\app_logo.ico"
 "MultiSelectModel"="Single"
 
 [HKEY_CURRENT_USER\Software\Classes\Directory\Background\shell\SyncWithGDrive\command]
-@="\"D:\\Python-3-12\\python.exe\" \"D:\\D-Documents\\TOOLs\\gdrive-tool\\sync-with-gdrive\\run_app.py\" \"%V\""
+@="\"D:\\Python-3-12\\python.exe\" \"D:\\D-Documents\\TOOLs\\gdrive-tool\\sync-with-gdrive\\run_app_multi.py\" \"%V\""

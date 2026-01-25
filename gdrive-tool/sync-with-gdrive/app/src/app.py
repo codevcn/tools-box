@@ -10,7 +10,7 @@ from PySide6.QtWidgets import (
     QSizePolicy,
     QFrame,
 )
-from PySide6.QtGui import QKeySequence, QShortcut
+from PySide6.QtGui import QKeySequence, QShortcut, QIcon
 from PySide6.QtCore import QProcess, QSize, Qt, QTimer
 from sync_progress import SyncProgressDialog
 from components.tooltip import CollisionConstraint, ToolTipBinder, ToolTipConfig
@@ -45,6 +45,8 @@ from configs.configs import PATH_TYPE, SyncError, ThemeColors
 from components.button import CustomButton
 from components.overlay import CustomOverlay
 from settings_screen import SettingsScreen
+import os
+import subprocess
 
 
 class MainWindow(QWidget):
@@ -109,6 +111,7 @@ class MainWindow(QWidget):
     def _setup_ui(self) -> None:
         """Thiết lập giao diện người dùng."""
         self.setWindowTitle("Đồng bộ với Google Drive")
+        self.setWindowIcon(QIcon("app/src/assets/app_logo.ico"))
         self.setMinimumWidth(800)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
 
@@ -211,6 +214,18 @@ class MainWindow(QWidget):
         self._top_menu_layout.addLayout(left_actions_layout)
         self._top_menu_layout.addLayout(self._right_actions_layout)
 
+    def _reveal_path_in_file_explorer(self, path: str) -> None:
+        """Mở file explorer và chọn tệp/thư mục đã đồng bộ."""
+        path = os.path.abspath(path)
+        if os.path.isfile(path):
+            # Mở explorer và select file
+            subprocess.run(["explorer", "/select,", path])
+        elif os.path.isdir(path):
+            # Mở explorer tại folder
+            subprocess.run(["explorer", path])
+        else:
+            raise FileNotFoundError(f"Path không tồn tại: {path}")
+
     def _render_selected_docs_preview(self) -> None:
         # Tạo CustomFlowLayout và lưu reference
         self.selected_docs_flow = CustomFlowLayout(
@@ -218,7 +233,7 @@ class MainWindow(QWidget):
         )
 
         # Container để set layout
-        preview = QWidget()
+        preview = QFrame()
         preview.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         preview.setLayout(self.selected_docs_flow)
 
@@ -235,17 +250,20 @@ class MainWindow(QWidget):
                 svg = f"{prefix_path}\\folder_icon.svg"
             path_objects.append((svg, path, path_type))
 
-        for svg, path, path_type in path_objects:
+        for svg, path_str, path_type in path_objects:
             file_info_box = FileInfoBox(
                 svg_path=svg,
                 svg_fill_color=None,
                 svg_stroke_color="#ffffff",
-                text=extract_filename_with_ext(path),
+                text=extract_filename_with_ext(path_str),
+            )
+            file_info_box.on_clicked(
+                lambda path=path_str: self._reveal_path_in_file_explorer(path)
             )
             ToolTipBinder(
                 file_info_box,
                 ToolTipConfig(
-                    text=f"<b>{'Thư mục' if path_type=='folder' else 'Tệp'}</b>: {path}",
+                    text=f"<b>{'Thư mục' if path_type=='folder' else 'Tệp'}</b>: {path_str}",
                     show_delay_ms=100,
                     constrain_to=CollisionConstraint.SCREEN,
                 ),
@@ -768,6 +786,7 @@ def init_app() -> None:
         else:
             print(f"⚠️ Path không tồn tại: {arg}")
 
+    print(">>> Local paths to sync:", local_paths)
     window = MainWindow(local_paths)
     window.show()
     sys.exit(app.exec())

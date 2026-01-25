@@ -1,9 +1,12 @@
 from PySide6.QtWidgets import QFrame, QLabel, QHBoxLayout, QSizePolicy
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, Signal
 from utils.helpers import svg_to_pixmap
+from typing import Callable
 
 
 class FileInfoBox(QFrame):
+    is_clicked = Signal()
+
     def __init__(
         self,
         text: str,
@@ -16,6 +19,7 @@ class FileInfoBox(QFrame):
 
         self.setObjectName("FileInfoBox")
         self.setSizePolicy(QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Fixed)
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
 
         layout = QHBoxLayout(self)
         layout.setContentsMargins(12, 4, 12, 6)  # padding trong box
@@ -30,10 +34,7 @@ class FileInfoBox(QFrame):
         icon.setFixedSize(18, 18)
 
         label = QLabel(text)
-        label.setTextInteractionFlags(
-            Qt.TextInteractionFlag.TextSelectableByMouse
-            | Qt.TextInteractionFlag.TextSelectableByKeyboard
-        )  # optional
+        label.setObjectName("FileInfoLabel")
         font = label.font()
         font.setPointSize(12)
         label.setFont(font)
@@ -44,13 +45,23 @@ class FileInfoBox(QFrame):
         # style: bo tròn + nền + border
         self.setStyleSheet(
             """
-            QFrame#FileInfoBox {
+            #FileInfoBox {
                 border: 1px solid rgba(255,255,255,40);
                 border-radius: 10px;
                 background-color: rgba(255,255,255,12);
             }
-            QLabel {
+            #FileInfoBox:hover {
+                background-color: rgba(255,255,255,40);
+            }
+            #FileInfoLabel {
                 color: white;
             }
             """
         )
+
+    def mousePressEvent(self, event):
+        self.is_clicked.emit()
+        super().mousePressEvent(event)
+
+    def on_clicked(self, callback: Callable):
+        self.is_clicked.connect(callback)

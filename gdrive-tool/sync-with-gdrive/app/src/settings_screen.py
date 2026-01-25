@@ -7,70 +7,52 @@ from PySide6.QtWidgets import (
     QSizePolicy,
     QStackedWidget,
 )
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QTimer, QSize
+from PySide6.QtGui import QPixmap
 from mixins.keyboard_shortcuts import KeyboardShortcutsDialogMixin
 from components.label import CustomLabel
 from components.button import CustomButton
 from configs.configs import ThemeColors
+from utils.helpers import get_svg_as_icon
 
 
-class KeyboardShortcutsWidget(QWidget):
+class KeyboardShortcuts(QFrame):
     """Widget hiển thị danh sách phím tắt theo sections"""
 
-    def __init__(self, parent=None):
+    def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)
         self._setup_ui()
 
     def _setup_ui(self):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(20, 20, 20, 20)
-        layout.setSpacing(20)
+        layout.setSpacing(18)
 
         # Title
-        title = CustomLabel("Các phím tắt khả dụng", is_bold=True, font_size=18)
+        title = CustomLabel("Các phím tắt khả dụng", is_bold=True, font_size=17)
         title.setStyleSheet("color: white;")
         layout.addWidget(title)
 
         # Scroll area cho nội dung
         scroll = QScrollArea()
+        scroll.setObjectName("ShortcutsScrollArea")
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QScrollArea.Shape.NoFrame)
-        scroll.setStyleSheet(
-            """
-            QScrollArea {
-                background-color: transparent;
-                border: none;
-            }
-            QScrollBar:vertical {
-                background-color: #2d2d2d;
-                width: 12px;
-                border-radius: 6px;
-            }
-            QScrollBar::handle:vertical {
-                background-color: #4d4d4d;
-                border-radius: 6px;
-                min-height: 30px;
-            }
-            QScrollBar::handle:vertical:hover {
-                background-color: #5d5d5d;
-            }
-        """
-        )
 
-        content_widget = QWidget()
+        content_widget = QFrame()
         content_layout = QVBoxLayout(content_widget)
         content_layout.setContentsMargins(0, 0, 10, 0)
-        content_layout.setSpacing(24)
+        content_layout.setSpacing(14)
 
         # Section 1: Màn hình chính
         content_layout.addWidget(
             self._create_section(
                 "Màn hình chính",
                 [
-                    ("Ctrl+Q hoặc Alt+Q", "Thoát ứng dụng"),
-                    ("Ctrl+Enter", "Bắt đầu đồng bộ ngay"),
-                    ("Ctrl+O", "Mở dialog chọn thư mục/tệp"),
-                    ("Ctrl+I", "Mở cửa sổ cài đặt"),
+                    ("Ctrl + Q hoặc Alt + Q", "Thoát ứng dụng"),
+                    ("Ctrl + Enter", "Bắt đầu đồng bộ ngay"),
+                    ("Ctrl + O", "Mở dialog chọn thư mục/tệp"),
+                    ("Ctrl + I", "Mở cửa sổ cài đặt"),
                 ],
             )
         )
@@ -80,7 +62,7 @@ class KeyboardShortcutsWidget(QWidget):
             self._create_section(
                 "Cửa sổ chọn kho lưu trữ",
                 [
-                    ("Ctrl+Q hoặc Alt+Q", "Đóng cửa sổ"),
+                    ("Ctrl + Q hoặc Alt + Q", "Đóng cửa sổ"),
                 ],
             )
         )
@@ -90,7 +72,7 @@ class KeyboardShortcutsWidget(QWidget):
             self._create_section(
                 "Cửa sổ tiến trình đồng bộ",
                 [
-                    ("Ctrl+Q hoặc Alt+Q", "Đóng cửa sổ"),
+                    ("Ctrl + Q hoặc Alt + Q", "Đóng cửa sổ"),
                 ],
             )
         )
@@ -107,11 +89,10 @@ class KeyboardShortcutsWidget(QWidget):
 
         layout = QVBoxLayout(section)
         layout.setContentsMargins(16, 12, 16, 12)
-        layout.setSpacing(10)
+        layout.setSpacing(6)
 
         # Section title
         title_label = CustomLabel(title, is_bold=True, font_size=14)
-        title_label.setStyleSheet(f"color: {ThemeColors.MAIN};")
         layout.addWidget(title_label)
 
         # Shortcuts list
@@ -119,39 +100,18 @@ class KeyboardShortcutsWidget(QWidget):
             shortcut_item = self._create_shortcut_item(key, description)
             layout.addWidget(shortcut_item)
 
-        section.setStyleSheet(
-            f"""
-            QFrame#ShortcutSection {{
-                background-color: rgba(255, 255, 255, 8);
-                border: 1px solid {ThemeColors.GRAY_BORDER};
-                border-radius: 8px;
-            }}
-        """
-        )
-
         return section
 
-    def _create_shortcut_item(self, key: str, description: str) -> QWidget:
+    def _create_shortcut_item(self, key: str, description: str) -> QFrame:
         """Tạo một dòng hiển thị phím tắt"""
-        item = QWidget()
+        item = QFrame()
         layout = QHBoxLayout(item)
         layout.setContentsMargins(8, 6, 8, 6)
-        layout.setSpacing(12)
+        layout.setSpacing(10)
 
         # Key label (phím tắt)
         key_label = CustomLabel(key, is_bold=True, font_size=12)
-        key_label.setStyleSheet(
-            f"""
-            CustomLabel {{
-                background-color: {ThemeColors.GRAY_BACKGROUND};
-                color: {ThemeColors.MAIN};
-                padding: 4px 12px 6px;
-                border-radius: 4px;
-                border: 1px solid {ThemeColors.GRAY_BORDER};
-            }}
-        """
-        )
-        key_label.setFixedWidth(180)
+        key_label.setObjectName("ShortcutKeyLabel")
         layout.addWidget(key_label)
 
         # Description label
@@ -165,11 +125,21 @@ class KeyboardShortcutsWidget(QWidget):
 class MenuButton(CustomButton):
     """Nút menu trong sidebar"""
 
-    def __init__(self, text: str, parent=None):
-        super().__init__(text, parent, is_bold=False, font_size=13)
+    def __init__(
+        self,
+        text: str,
+        icon: QPixmap | None = None,
+        is_bold: bool = False,
+        font_size: int = 13,
+        parent: QWidget | None = None,
+    ):
+        super().__init__(text, parent, is_bold=is_bold, font_size=font_size)
+        self.setObjectName("MenuButtonRoot")
         self.setFixedHeight(40)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
         self._is_active = False
+        if icon:
+            self.setIcon(icon)
         self._update_style()
 
     def set_active(self, active: bool):
@@ -181,7 +151,7 @@ class MenuButton(CustomButton):
         if self._is_active:
             self.setStyleSheet(
                 f"""
-                MenuButton {{
+                #MenuButtonRoot {{
                     background-color: {ThemeColors.MAIN};
                     color: black;
                     border: none;
@@ -195,7 +165,7 @@ class MenuButton(CustomButton):
         else:
             self.setStyleSheet(
                 f"""
-                MenuButton {{
+                #MenuButtonRoot {{
                     background-color: transparent;
                     color: white;
                     border: none;
@@ -203,7 +173,7 @@ class MenuButton(CustomButton):
                     text-align: left;
                     padding-left: 16px;
                 }}
-                MenuButton:hover {{
+                #MenuButtonRoot:hover {{
                     background-color: rgba(255, 255, 255, 10);
                 }}
             """
@@ -216,12 +186,56 @@ class SettingsScreen(KeyboardShortcutsDialogMixin):
     def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)
         self.setWindowTitle("Cài đặt")
-        self.resize(800, 600)
+        self.resize(800, 500)
         self._menu_buttons: list[MenuButton] = []
         self._setup_ui()
 
     def _setup_ui(self):
         """Thiết lập giao diện"""
+        self.setObjectName("SettingsScreenRoot")
+        self.setStyleSheet(
+            f"""
+            #MenuSideBarRoot {{
+                background-color: #252525;
+                border-right: 1px solid {ThemeColors.GRAY_BORDER};
+            }}
+            #ShortcutKeyLabel {{
+                background-color: {ThemeColors.GRAY_BACKGROUND};
+                color: {ThemeColors.MAIN};
+                padding: 4px 8px 6px;
+                border-radius: 4px;
+                border: 1px solid {ThemeColors.GRAY_BORDER};
+            }}
+            #ShortcutSection {{
+                background-color: rgba(255, 255, 255, 8);
+                border: 1px solid {ThemeColors.GRAY_BORDER};
+                border-radius: 8px;
+            }}
+            #ShortcutsScrollArea {{
+                background-color: transparent;
+                border: none;
+            }}
+            QScrollBar:vertical {{
+                background-color: #4d4d4d;
+                width: 12px;
+                border-radius: 6px;
+            }}
+            QScrollBar::handle:vertical {{
+                background-color: #4d4d4d;
+                border-radius: 6px;
+                min-height: 30px;
+            }}
+            QScrollBar::handle:vertical:hover {{
+                background-color: #323232;
+            }}
+            #CloseSettingsButton {{
+                background-color: {ThemeColors.STRONG_GRAY};
+                color: black;
+            }}
+            """
+        )
+        "#323232"
+
         main_layout = QHBoxLayout(self)
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.setSpacing(0)
@@ -232,31 +246,19 @@ class SettingsScreen(KeyboardShortcutsDialogMixin):
 
         # Main content area (bên phải)
         self._content_stack = QStackedWidget()
-        self._content_stack.setStyleSheet(
-            f"QStackedWidget {{ background-color: {ThemeColors.GRAY_BACKGROUND}; }}"
-        )
 
         # Thêm các page vào stack
-        self._content_stack.addWidget(KeyboardShortcutsWidget())  # Index 0: Phím tắt
+        self._content_stack.addWidget(KeyboardShortcuts())  # Index 0: Phím tắt
 
         main_layout.addWidget(self._content_stack, 1)
 
         # Set page đầu tiên
-        self._switch_page(0)
-
-        # Style tổng thể
-        self.setStyleSheet(
-            f"""
-            QDialog {{
-                background-color: {ThemeColors.GRAY_BACKGROUND};
-            }}
-        """
-        )
+        QTimer.singleShot(0, lambda: self._switch_page(0))
 
     def _create_sidebar(self) -> QFrame:
         """Tạo sidebar menu"""
         sidebar = QFrame()
-        sidebar.setObjectName("Sidebar")
+        sidebar.setObjectName("MenuSideBarRoot")
         sidebar.setFixedWidth(200)
         sidebar.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Expanding)
 
@@ -265,29 +267,42 @@ class SettingsScreen(KeyboardShortcutsDialogMixin):
         layout.setSpacing(8)
 
         # Title
-        title = CustomLabel("Cài đặt", is_bold=True, font_size=16)
+        title = CustomLabel("Cài đặt", is_bold=True, font_size=15)
         title.setStyleSheet("color: white; padding: 8px 0px;")
         layout.addWidget(title)
 
-        # Menu items
-        keyboard_btn = MenuButton("⌨️  Phím tắt")
-        keyboard_btn.on_clicked(lambda: self._switch_page(0))
-        self._menu_buttons.append(keyboard_btn)
-        layout.addWidget(keyboard_btn)
+        # Menu buttons
+        menu_buttons = self._create_menu_buttons()
+        for btn in menu_buttons:
+            layout.addWidget(btn)
 
         # Spacer để đẩy menu lên trên
         layout.addStretch()
 
-        sidebar.setStyleSheet(
-            f"""
-            QFrame#Sidebar {{
-                background-color: #252525;
-                border-right: 1px solid {ThemeColors.GRAY_BORDER};
-            }}
-        """
+        close_settings_btn = MenuButton(
+            "Đóng cài đặt",
+            is_bold=True,
         )
+        close_settings_btn.setContentsMargins(0, 0, 0, 12)
+        close_settings_btn.setObjectName("CloseSettingsButton")
+        close_settings_btn.setIconSize(QSize(26, 26))
+        close_settings_btn.on_clicked(self.accept)
+        layout.addWidget(close_settings_btn)
 
         return sidebar
+
+    def _create_menu_buttons(self) -> list[MenuButton]:
+        """Render lại trạng thái của các nút menu"""
+        # Phím tắt keyboard shortcuts
+        keyboard_btn = MenuButton(
+            "Phím tắt",
+            get_svg_as_icon("keyboard_icon", 26, None, "#000000", 3, (0, 0, 8, 0)),
+        )
+        keyboard_btn.setIconSize(QSize(26, 26))
+        keyboard_btn.on_clicked(lambda: self._switch_page(0))
+        self._menu_buttons.append(keyboard_btn)
+
+        return [keyboard_btn]
 
     def _switch_page(self, index: int):
         """Chuyển đổi giữa các page"""

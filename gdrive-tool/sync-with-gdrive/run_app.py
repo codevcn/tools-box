@@ -27,10 +27,6 @@ def get_selected_paths() -> list[str]:
 
         p = Path(arg).resolve()
 
-        # (tuỳ chọn) chỉ lấy path tồn tại
-        if not p.exists():
-            continue
-
         key = str(p)
         if key in seen:
             continue
@@ -43,11 +39,9 @@ def get_selected_paths() -> list[str]:
 
 def run_app():
     valid_paths = get_selected_paths()
-    print(">>> paths:", valid_paths)
 
     # gọi app 1 lần, truyền nhiều path (khuyến nghị)
     subprocess.Popen([PYTHON_EXE_FILE_PATH, APP_PY_FILE_PATH, *valid_paths])
-
 
 
 if __name__ == "__main__":
