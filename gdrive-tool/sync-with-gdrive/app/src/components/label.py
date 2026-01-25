@@ -11,6 +11,7 @@ class CustomLabel(QLabel):
         is_bold: bool = False,
         is_word_wrap: bool = False,
         align: Qt.AlignmentFlag | None = None,
+        font_size: int | None = None,
     ):
         super().__init__("", parent)
         self.setTextFormat(Qt.TextFormat.RichText)
@@ -24,6 +25,8 @@ class CustomLabel(QLabel):
             self.setWordWrap(True)
         if align:
             self.setAlignment(align)
+        if font_size:
+            self.set_font_size(font_size)
 
     def set_font_size(self, font_size: int):
         font = self.font()

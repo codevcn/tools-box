@@ -1,5 +1,4 @@
 from PySide6.QtWidgets import (
-    QDialog,
     QVBoxLayout,
     QScrollArea,
     QWidget,
@@ -14,6 +13,7 @@ from data.data_manager import DataManager
 from utils.helpers import get_svg_as_icon
 from configs.configs import ThemeColors
 from components.label import CustomLabel
+from mixins.keyboard_shortcuts import KeyboardShortcutsDialogMixin
 
 
 class RemoteItem(QWidget):
@@ -79,12 +79,12 @@ class RemoteItem(QWidget):
         super().mousePressEvent(event)
 
 
-class ActiveRemoteScreen(QDialog):
+class ActiveRemoteScreen(KeyboardShortcutsDialogMixin):
     """Window hiển thị danh sách remotes để chọn"""
 
     remote_selected = Signal(str)  # Emit khi user chọn remote
 
-    def __init__(self, parent: QWidget | None = None):
+    def __init__(self, parent: QWidget):
         super().__init__(parent)
         self._data_manager = DataManager()
         self._remotes_layout: QVBoxLayout
@@ -164,9 +164,9 @@ class ActiveRemoteScreen(QDialog):
         ok_btn_layout.setSpacing(8)
         ok_button = CustomButton("Đóng", font_size=16, is_bold=True, fixed_height=40)
         ok_button.setIcon(
-            get_svg_as_icon("check_icon", 24, None, "black", 3, margins=(0, 0, 8, 0))
+            get_svg_as_icon("check_icon", 26, None, "black", 3, margins=(0, 0, 8, 0))
         )
-        ok_button.setIconSize(QSize(24, 24))
+        ok_button.setIconSize(QSize(26, 26))
         ok_button.on_clicked(self.accept)
         ok_button.setStyleSheet(
             f"""

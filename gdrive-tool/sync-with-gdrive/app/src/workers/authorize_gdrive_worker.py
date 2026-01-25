@@ -1,11 +1,12 @@
 from PySide6.QtCore import QObject, Signal, QProcess
+from PySide6.QtWidgets import QWidget
 
 
 class RcloneDriveSetup(QObject):
     log = Signal(str)
     done = Signal(bool, str)  # (ok, message)
 
-    def __init__(self, rclone_exe: str = "rclone", parent=None):
+    def __init__(self, rclone_exe: str = "rclone", parent: QWidget | None = None):
         super().__init__(parent)
         self._rclone_exe: str = rclone_exe
         self._process: QProcess = QProcess(self)

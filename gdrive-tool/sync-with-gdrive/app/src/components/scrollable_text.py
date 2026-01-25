@@ -1,8 +1,8 @@
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel, QScrollArea, QSizePolicy
+from PySide6.QtWidgets import QFrame, QVBoxLayout, QLabel, QScrollArea, QSizePolicy
 from PySide6.QtCore import Qt
 
 
-class ScrollableText(QWidget):
+class ScrollableText(QFrame):
     def __init__(self, default_text: str = "", fixed_height: int = 120, parent=None):
         super().__init__(parent)
 

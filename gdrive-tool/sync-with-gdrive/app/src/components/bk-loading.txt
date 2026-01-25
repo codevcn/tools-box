@@ -1,14 +1,9 @@
+import sys
 import math
 from PySide6.QtCore import Qt, QTimer, QSize
 from PySide6.QtGui import QPainter, QBrush, QColor, QPaintEvent, QShowEvent, QHideEvent
-from PySide6.QtWidgets import (
-    QWidget,
-)
-
-
-# from configs.configs import ThemeColors # Giả lập import nếu bạn không có file này
-class ThemeColors:
-    MAIN = "#3498db"
+from PySide6.QtWidgets import QApplication, QWidget, QVBoxLayout, QPushButton, QLabel
+from configs.configs import ThemeColors
 
 
 class LoadingDots(QWidget):
@@ -17,11 +12,11 @@ class LoadingDots(QWidget):
         parent: QWidget | None = None,
         dot_count=3,
         dot_size=12,
-        color='#000000',
+        color=ThemeColors.MAIN,
         spacing=8,
         speed_factor=1.0,
-        max_scale=1.4,
-        stagger_delay=150,  # Mặc định delay 150ms
+        max_scale=1.4,  # <--- MỚI: Mức scale tối đa (1.4 = 140%)
+        stagger_delay=100,  # <--- MỚI: Thời gian đợi giữa các dot (ms) (100ms = 0.1s)
     ):
         super().__init__(parent)
 
@@ -30,27 +25,24 @@ class LoadingDots(QWidget):
         self._dot_size = dot_size
         self._color = QColor(color)
         self._spacing = spacing
-        self._max_scale = max_scale
-        self._stagger_delay = stagger_delay
+
+        self._max_scale = max_scale  # Lưu mức scale user muốn
+        self._stagger_delay = stagger_delay  # Lưu thời gian delay (ms)
 
         # Speed config
-        # Base step càng lớn thì tốc độ "nảy" của 1 dot càng nhanh
-        self._base_step = 0.15
+        self._base_step = 0.15  # Bước nhảy cơ bản mỗi 16ms
         self._speed_factor = speed_factor
 
-        # --- Calculated State ---
-        self._delay_rad = 0.0  # Delay quy đổi ra radian
-        self._cycle_rad = 0.0  # Tổng chiều dài vòng lặp (radian)
-        self._pulse_rad = math.pi  # Một nhịp nảy là PI (0 -> 1 -> 0)
-
-        self._recalc_params()
+        # Tính toán độ lệch pha dựa trên thời gian delay (ms)
+        self._phase_shift = 0.0
+        self._recalc_phase_shift()
 
         # --- Animation State ---
         self._counter = 0.0
         self._is_running = False
 
         self._timer = QTimer(self)
-        self._timer.setInterval(16)  # ~60 FPS
+        self._timer.setInterval(16)  # ~60 FPS (16ms per frame)
         self._timer.timeout.connect(self._on_timeout)
 
         self.setSizePolicy(
@@ -58,31 +50,19 @@ class LoadingDots(QWidget):
         )
         self.updateGeometry()
 
-    def _recalc_params(self):
+    def _recalc_phase_shift(self):
         """
-        Tính toán lại các thông số vật lý của animation.
-        Logic:
-        1. Tính xem mỗi milisecond tương ứng bao nhiêu đơn vị 'step' (radian).
-        2. Tính tổng chu kỳ sao cho Dot 1 phải đợi Dot N xong mới chạy.
+        Chuyển đổi thời gian delay (ms) thành độ lệch pha (radian)
+        dựa trên tốc độ hiện tại.
+
+        Công thức:
+        - Mỗi frame (16ms) counter tăng: (base_step * speed_factor)
+        - Số frame trong 'delay_ms': delay_ms / 16
+        - Tổng counter cần lệch: (Counter/Frame) * (Số Frame)
         """
-        # Tốc độ tăng counter mỗi frame (16ms)
         step_per_frame = self._base_step * self._speed_factor
-
-        # 1. Quy đổi Delay (ms) -> Radian
-        # Delay bao nhiêu frame?
-        frames_delay = self._stagger_delay / 16.0
-        self._delay_rad = frames_delay * step_per_frame
-
-        # 2. Tính tổng chu kỳ (Cycle Length)
-        # Dot cuối cùng bắt đầu tại: (N-1) * delay
-        # Dot cuối cùng kết thúc tại: Start + Pulse_Width (PI)
-        last_dot_finish_time = (
-            (self._dot_count - 1) * self._delay_rad
-        ) + self._pulse_rad
-
-        # Tổng chu kỳ phải ÍT NHẤT bằng lúc dot cuối kết thúc.
-        # Thêm một chút padding (0.5) để animation thở được một chút trước khi lặp lại
-        self._cycle_rad = last_dot_finish_time + 0.5
+        frames_needed = self._stagger_delay / 16.0
+        self._phase_shift = step_per_frame * frames_needed
 
     # --- Public API ---
     def start(self):
@@ -104,32 +84,30 @@ class LoadingDots(QWidget):
         color: str | None = None,
         dot_size: int | None = None,
     ):
-        need_recalc = False
+        """Hàm cập nhật thông số runtime."""
+        need_recalc_phase = False
 
         if color is not None:
             self._color = QColor(color)
 
         if max_scale is not None:
             self._max_scale = max_scale
-            self.updateGeometry()
+            self.updateGeometry()  # Scale đổi thì size widget phải đổi
 
         if speed_factor is not None:
             self._speed_factor = speed_factor
-            need_recalc = True
+            need_recalc_phase = True
 
         if stagger_delay is not None:
             self._stagger_delay = stagger_delay
-            need_recalc = True
+            need_recalc_phase = True
+
+        if need_recalc_phase:
+            self._recalc_phase_shift()
 
         if dot_size is not None:
             self._dot_size = dot_size
-            need_recalc = (
-                True  # Dot count/size đổi có thể ảnh hưởng (nếu logic phức tạp hơn)
-            )
-            self.updateGeometry()
-
-        if need_recalc:
-            self._recalc_params()
+            self.updateGeometry()  # Kích thước dot đổi thì size widget phải đổi
 
         self.update()
 
@@ -144,7 +122,6 @@ class LoadingDots(QWidget):
         self._timer.stop()
 
     def _on_timeout(self):
-        # Counter tăng vô tận, nhưng logic vẽ sẽ dùng modulo (%)
         self._counter += self._base_step * self._speed_factor
         self.update()
 
@@ -154,6 +131,7 @@ class LoadingDots(QWidget):
         total_width = (max_dot_w * self._dot_count) + (
             self._spacing * (self._dot_count - 1)
         )
+        # Thêm padding an toàn
         return QSize(int(total_width + 4), int(max_dot_w + 4))
 
     # --- Painting ---
@@ -170,26 +148,15 @@ class LoadingDots(QWidget):
             scale_factor = 1.0
 
             if self._is_running:
-                # LOGIC MỚI: PULSE & REST
+                # Math: Dùng _phase_shift đã tính toán để tạo độ trễ chính xác
+                # Sin wave chạy từ -1 đến 1
+                wave = math.sin(self._counter - (i * self._phase_shift))
 
-                # 1. Tính thời gian cục bộ (Local Time) cho từng dot
-                # Offset thời gian của dot i là: i * delay
-                # Dùng Modulo (%) để tạo vòng lặp
+                # Normalize về 0 -> 1
+                norm = (wave + 1) / 2
 
-                # current_pos là vị trí của dot i trong vòng lặp [0 -> cycle_rad]
-                current_pos = (self._counter - (i * self._delay_rad)) % self._cycle_rad
-
-                # 2. Kiểm tra xem dot có đang trong giai đoạn "Nảy" (Pulse) không?
-                # Giai đoạn nảy là từ 0 đến PI (khoảng 3.14)
-                if 0 <= current_pos <= self._pulse_rad:
-                    # Tính giá trị sin (0 -> 1 -> 0)
-                    val = math.sin(current_pos)
-
-                    # Map sang scale
-                    scale_factor = 1.0 + (self._max_scale - 1.0) * val
-                else:
-                    # Ngoài khoảng này là thời gian "Nghỉ" (Rest) đợi các dot khác
-                    scale_factor = 1.0
+                # Áp dụng mức Max Scale user mong muốn
+                scale_factor = 1.0 + (self._max_scale - 1.0) * norm
 
             current_size = self._dot_size * scale_factor
 

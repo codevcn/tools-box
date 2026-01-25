@@ -5,6 +5,7 @@ from PySide6.QtWidgets import (
     QFrame,
     QSizePolicy,
     QLayout,
+    QWidget,
 )
 from PySide6.QtCore import Qt, QSize, Signal
 from components.dialog import CustomDialog
@@ -27,7 +28,7 @@ class LoginResult(Enum):
 class LoginGDriveScreen(QDialog):
     login_result = Signal(LoginResult, str, str)  # (result, remote_name, error_msg)
 
-    def __init__(self, parent=None):
+    def __init__(self, parent: QWidget):
         super().__init__(parent)
         self._data_manager: DataManager = DataManager()
         self._remote_name_input: QLineEdit

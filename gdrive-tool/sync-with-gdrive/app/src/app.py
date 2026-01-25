@@ -12,6 +12,7 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtGui import QKeySequence, QShortcut
 from PySide6.QtCore import QProcess, QSize, Qt, QTimer
+from sync_progress import SyncProgressDialog
 from components.tooltip import CollisionConstraint, ToolTipBinder, ToolTipConfig
 from components.scrollable_text import ScrollableText
 from login_gdrive_screen import LoginGDriveScreen, LoginResult
@@ -30,10 +31,20 @@ from utils.helpers import (
 from components.flow_layout import CustomFlowLayout
 from components.selected_file_box import FileInfoBox
 from components.label import CustomLabel
-from workers.sync_worker import RcloneSyncWorker, SyncAction, SyncOptions
+from workers.sync_worker import (
+    RcloneSyncWorker,
+    SyncAction,
+    SyncOptions,
+    SyncProgressData,
+    SyncProgressStatus,
+)
+
+# from testing.mock_sync_worker import MockRcloneSyncWorker
 from data.data_manager import ConfigSchema, DataManager
 from configs.configs import PATH_TYPE, SyncError, ThemeColors
 from components.button import CustomButton
+from components.overlay import CustomOverlay
+from settings_screen import SettingsScreen
 
 
 class MainWindow(QWidget):
@@ -41,7 +52,9 @@ class MainWindow(QWidget):
 
     def __init__(self, local_paths: list[str]):
         super().__init__()
-        self._sync_worker: RcloneSyncWorker
+        self._sync_worker: RcloneSyncWorker | None = None
+        # self._sync_worker: MockRcloneSyncWorker | None = None
+        self._sync_progress_dialog: SyncProgressDialog | None = None
         self._data_manager: DataManager = DataManager()
         self._root_layout: QVBoxLayout
         self._top_menu_layout: QHBoxLayout
@@ -56,6 +69,8 @@ class MainWindow(QWidget):
         self._log_output: ScrollableText
         self._right_actions_layout: QHBoxLayout
         self._active_remote_label: CustomLabel
+        self._copy_log_btn: CustomButton
+        self._settings_dialog: SettingsScreen | None = None
         self._setup_ui()
         self._set_local_paths_list(local_paths)
         self._add_catch_keyboard_shortcuts()
@@ -398,6 +413,17 @@ class MainWindow(QWidget):
         login_gdrive_screen.login_result.connect(self._on_login_gdrive_successful)
         login_gdrive_screen.exec()
 
+    def _on_copy_log(self) -> None:
+        """Xử lý khi người dùng nhấn nút sao chép log."""
+        QApplication.clipboard().setText(self._log_output.get_text())
+        self._copy_log_btn.switch_text_and_icon(
+            icon=get_svg_as_icon("double_check_icon", 20, None, "#ffffff", 2),
+            icon_size=20,
+        )
+        QTimer.singleShot(
+            2000, lambda: self._copy_log_btn.switch_text_and_icon(text="Sao chép")
+        )
+
     def _create_log_section(self) -> QVBoxLayout:
         log_layout = QVBoxLayout()
         log_label = CustomLabel("Chi tiết đồng bộ:", is_bold=True)
@@ -406,38 +432,56 @@ class MainWindow(QWidget):
             fixed_height=150,
             default_text="Đồng bộ ngay để xem chi tiết...",
         )
-        self._log_output.set_contents_margins(6, 0, 6, 0)
+        self._log_output.set_contents_margins(10, 6, 10, 6)
         self._log_output.setStyleSheet(
             f"""
             #ScrollableTextScroll {{
                 background-color: {ThemeColors.GRAY_BACKGROUND};
+                border: 1px solid {ThemeColors.GRAY_BORDER};
                 border-radius: 12px;
             }}
             #ScrollableTextLabel {{
                 background-color: {ThemeColors.GRAY_BACKGROUND};
-                border: 1px solid {ThemeColors.GRAY_BORDER};
                 border-radius: 12px;
                 color: white;
             }}
             """
         )
         self._log_output.set_font_size(12)
+        self.copy_log_btn_overlay = CustomOverlay(
+            parent_widget=self._log_output,
+            align=Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignRight,
+            margin=2,
+        )
+        self._copy_log_btn = CustomButton("Sao chép", fixed_height=28, font_size=11)
+        self._copy_log_btn.setObjectName("CopyLogButton")
+        self._copy_log_btn.setStyleSheet(
+            f"""
+            #CopyLogButton {{
+                background-color: transparent;
+                border: none;
+                padding: 2px 6px 4px;
+            }}
+        """
+        )
+        self._copy_log_btn.on_clicked(self._on_copy_log)
+        self.copy_log_btn_overlay.content_layout.addWidget(self._copy_log_btn)
         log_layout.addWidget(log_label)
         log_layout.addWidget(self._log_output)
         return log_layout
 
     def _write_log(self, text: str) -> None:
-        self._log_output.setText(f"{text}\n")
+        self._log_output.setText(f"{text}")
 
     def _render_sync_button_section(self) -> None:
         """Render nút đồng bộ và nút thoát."""
         if self._sync_btn:
             if self._is_syncing:
                 self._sync_btn.setEnabled(False)
-                self._sync_btn.setText("Đang đồng bộ...")
+                self._sync_btn.start_loading()
             else:
                 self._sync_btn.setEnabled(True)
-                self._sync_btn.setText("Đồng bộ ngay")
+                self._sync_btn.stop_loading()
         else:
             self._sync_btn = CustomButton("Đồng bộ ngay", is_bold=True, fixed_height=48)
             self._sync_btn.setIcon(
@@ -516,7 +560,11 @@ class MainWindow(QWidget):
             local_paths=self._local_paths_list,
             gdrive_path=self._current_gdrive_path,
             options=options,
+            parent=self,
         )
+        # self._sync_worker = MockRcloneSyncWorker(
+        #     parent=self,
+        # )
 
         self._sync_worker.log.connect(self._write_log)
         self._sync_worker.error.connect(self._on_sync_error)
@@ -538,7 +586,7 @@ class MainWindow(QWidget):
                     get_svg_file_path("info_icon")[0],
                     35,
                     None,
-                    "#00a0df",
+                    ThemeColors.INFO,
                     margins=(0, 0, 8, 0),
                 ),
             )
@@ -553,7 +601,7 @@ class MainWindow(QWidget):
                     get_svg_file_path("warn_icon")[0],
                     35,
                     None,
-                    "#ff0000",
+                    ThemeColors.WARNING,
                     margins=(0, 0, 8, 0),
                 ),
             )
@@ -565,20 +613,49 @@ class MainWindow(QWidget):
         self._render_sync_button_section()
         self._log_output.clear_text()
 
-        QTimer.singleShot(0, self._do_sync)
+        self._do_sync()
 
-    def _on_sync_progress(self, percent: float, status_text: str):
-        print(f">>> Sync progress: {percent}%, status: {status_text}")
-        # self.progressBar.setValue(int(percent))
-        # self.statusLabel.setText(status_text)
-        pass
+        # Hiện dialog tiến trình đồng bộ (sync progress dialog)
+        self._sync_progress_dialog = SyncProgressDialog(parent=self)
+        self._sync_progress_dialog.reset()
+        self._sync_progress_dialog.cancel_requested.connect(self._on_cancel_sync)
+        self._sync_progress_dialog.exec()
+
+    def _reset_sync_indicators(self) -> None:
+        """Reset các chỉ báo sync về trạng thái ban đầu."""
+        self._is_syncing = False
+        self._render_sync_button_section()
+
+    def _on_sync_progress(
+        self, status: SyncProgressStatus, data: SyncProgressData
+    ) -> None:
+        # Update dữ liệu vào list
+        if self._sync_progress_dialog:
+            self._sync_progress_dialog.update_item_progress(data)
+            if status == SyncProgressStatus.FINISHED:
+                self._sync_progress_dialog.btn_cancel.setText("Đóng")
+                # Ngắt connect cũ và nối vào hàm đóng dialog
+                try:
+                    self._sync_progress_dialog.btn_cancel.clicked.disconnect()
+                except:
+                    pass
+                self._sync_progress_dialog.btn_cancel.clicked.connect(
+                    self._sync_progress_dialog.accept
+                )
+
+    def _on_cancel_sync(self):
+        if self._sync_worker and self._sync_progress_dialog:
+            self._sync_worker.cancel()
+            self._sync_progress_dialog.reject()
+            self._reset_sync_indicators()
 
     def _on_sync_finished(self, code: int, status: QProcess.ExitStatus) -> None:
         print(f">>> Sync finished with code={code}, status={status}")
-        self._is_syncing = False
-        self._render_sync_button_section()
+        self._reset_sync_indicators()
         self._data_manager.save_last_gdrive_entered_dir(self._current_gdrive_path)
-        pass
+        if self._sync_progress_dialog:
+            self._sync_progress_dialog.accept()
+            self._sync_progress_dialog = None
 
     def _on_sync_error(self, msg: str) -> None:
         print(f">>> Sync error: {msg}")
@@ -601,8 +678,9 @@ class MainWindow(QWidget):
 
     def _open_settings_screen(self) -> None:
         """Mở window Settings."""
-        print(">>> Open settings screen")
-        pass
+        if not self._settings_dialog:
+            self._settings_dialog = SettingsScreen(self)
+        self._settings_dialog.exec()
 
     def _render_user_data(self, saved_user_data: ConfigSchema) -> None:
         """Hiển thị dữ liệu sync đã lưu."""
