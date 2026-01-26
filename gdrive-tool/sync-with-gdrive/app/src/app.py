@@ -17,7 +17,7 @@ from components.tooltip import CollisionConstraint, ToolTipBinder, ToolTipConfig
 from components.scrollable_text import ScrollableText
 from login_gdrive_screen import LoginGDriveScreen, LoginResult
 from active_remote_info import ActiveRemoteScreen
-from components.dialog import CustomDialog
+from components.announcement import CustomAnnounce
 from components.divider import CustomDivider
 from utils.helpers import (
     detect_content_type_by_file_extension,
@@ -111,7 +111,7 @@ class MainWindow(QWidget):
     def _setup_ui(self) -> None:
         """Thiết lập giao diện người dùng."""
         self.setWindowTitle("Đồng bộ với Google Drive")
-        self.setWindowIcon(QIcon("app/src/assets/app_logo.ico"))
+        self.setWindowIcon(QIcon("app/src/assets/app.ico"))
         self.setMinimumWidth(800)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
 
@@ -592,7 +592,7 @@ class MainWindow(QWidget):
         # Validate inputs
         is_valid, error_msg, err_type = self._validate_inputs()
         if err_type == SyncError.NEED_LOGIN:
-            popup = CustomDialog(
+            popup = CustomAnnounce(
                 self,
                 title="Yêu cầu đăng nhập",
                 text=error_msg,
@@ -607,7 +607,7 @@ class MainWindow(QWidget):
             popup.exec_and_get()
             return
         elif not is_valid:
-            popup = CustomDialog(
+            popup = CustomAnnounce(
                 self,
                 title="Lỗi",
                 text=error_msg,
@@ -673,7 +673,7 @@ class MainWindow(QWidget):
     def _on_sync_error(self, msg: str) -> None:
         self._is_syncing = False
         self._render_sync_button_section()
-        popup = CustomDialog(
+        popup = CustomAnnounce(
             self,
             title="Lỗi đồng bộ",
             text=msg,

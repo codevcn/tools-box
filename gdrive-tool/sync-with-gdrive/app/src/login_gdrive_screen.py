@@ -8,7 +8,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 from PySide6.QtCore import Qt, QSize, Signal
-from components.dialog import CustomDialog
+from components.announcement import CustomAnnounce
 from data.data_manager import DataManager
 from utils.helpers import get_svg_file_path, svg_to_pixmap
 from configs.configs import ThemeColors
@@ -220,7 +220,7 @@ class LoginGDriveScreen(QDialog):
             self.login_result.emit(LoginResult.SUCCESS, self._pending_remote_name, "")
             self.accept()
         else:
-            popup = CustomDialog(
+            popup = CustomAnnounce(
                 self,
                 title="Lỗi",
                 text=msg,
@@ -246,7 +246,7 @@ class LoginGDriveScreen(QDialog):
         self._pending_remote_name = self._remote_name_input.text().strip()
 
         if not self._pending_remote_name:
-            popup = CustomDialog(
+            popup = CustomAnnounce(
                 self,
                 title="Lỗi",
                 text="Vui lòng nhập tên kho lưu trữ trước khi đăng nhập.",

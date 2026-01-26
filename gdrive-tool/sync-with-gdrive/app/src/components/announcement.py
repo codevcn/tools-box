@@ -21,7 +21,7 @@ class DialogButtonSpec:
     closes: bool = True  # True: auto close popup after click
 
 
-class CustomDialog(QObject):
+class CustomAnnounce(QObject):
     """
     Wrapper cho QMessageBox để:
     - Custom buttons (text/icon/role)

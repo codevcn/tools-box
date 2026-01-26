@@ -14,9 +14,10 @@ from components.label import CustomLabel
 from components.button import CustomButton
 from configs.configs import ThemeColors
 from utils.helpers import get_svg_as_icon
+from __init__ import __app_name__, __version__
 
 
-class KeyboardShortcuts(QFrame):
+class KeyboardShortcutsSection(QFrame):
     """Widget hiển thị danh sách phím tắt theo sections"""
 
     def __init__(self, parent: QWidget | None = None):
@@ -122,6 +123,43 @@ class KeyboardShortcuts(QFrame):
         return item
 
 
+class AboutSection(QFrame):
+    """Section hiển thị thông tin About của app."""
+
+    def __init__(self, parent: QWidget | None = None):
+        super().__init__(parent)
+        self._setup_ui()
+
+    def _setup_ui(self):
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(12)
+
+        title = CustomLabel("About", is_bold=True, font_size=17)
+        title.setStyleSheet("color: white;")
+        layout.addWidget(title)
+
+        app_label = CustomLabel(f"Tên app: {__app_name__}", font_size=14)
+        app_label.setStyleSheet("color: white;")
+        layout.addWidget(app_label)
+
+        version_label = CustomLabel(f"Phiên bản: {__version__}", font_size=14)
+        version_label.setStyleSheet("color: white;")
+        layout.addWidget(version_label)
+
+        author_label = CustomLabel("Tác giả: CodeVCN", font_size=14)
+        author_label.setStyleSheet("color: white;")
+        layout.addWidget(author_label)
+
+        note_label = CustomLabel(
+            "Ghi chú: Ổn định cho Windows, Mac chưa test.", font_size=14
+        )
+        note_label.setStyleSheet("color: white;")
+        layout.addWidget(note_label)
+
+        layout.addStretch()
+
+
 class MenuButton(CustomButton):
     """Nút menu trong sidebar"""
 
@@ -162,11 +200,12 @@ class MenuButton(CustomButton):
                 }}
             """
             )
+            self.update_icon_color("#000000")
         else:
             self.setStyleSheet(
                 f"""
                 #MenuButtonRoot {{
-                    background-color: transparent;
+                    background-color: {ThemeColors.GRAY_BACKGROUND};
                     color: white;
                     border: none;
                     border-radius: 6px;
@@ -178,6 +217,7 @@ class MenuButton(CustomButton):
                 }}
             """
             )
+            self.update_icon_color("#FFFFFF")
 
 
 class SettingsScreen(KeyboardShortcutsDialogMixin):
@@ -234,7 +274,6 @@ class SettingsScreen(KeyboardShortcutsDialogMixin):
             }}
             """
         )
-        "#323232"
 
         main_layout = QHBoxLayout(self)
         main_layout.setContentsMargins(0, 0, 0, 0)
@@ -248,7 +287,8 @@ class SettingsScreen(KeyboardShortcutsDialogMixin):
         self._content_stack = QStackedWidget()
 
         # Thêm các page vào stack
-        self._content_stack.addWidget(KeyboardShortcuts())  # Index 0: Phím tắt
+        self._content_stack.addWidget(KeyboardShortcutsSection())  # Index 0: Phím tắt
+        self._content_stack.addWidget(AboutSection())  # Index 1: About
 
         main_layout.addWidget(self._content_stack, 1)
 
@@ -296,13 +336,21 @@ class SettingsScreen(KeyboardShortcutsDialogMixin):
         # Phím tắt keyboard shortcuts
         keyboard_btn = MenuButton(
             "Phím tắt",
-            get_svg_as_icon("keyboard_icon", 26, None, "#000000", 3, (0, 0, 8, 0)),
+            get_svg_as_icon("keyboard_icon", 26, None, None, 3, (0, 0, 8, 0)),
         )
         keyboard_btn.setIconSize(QSize(26, 26))
         keyboard_btn.on_clicked(lambda: self._switch_page(0))
         self._menu_buttons.append(keyboard_btn)
 
-        return [keyboard_btn]
+        about_btn = MenuButton(
+            "About",
+            get_svg_as_icon("info_icon", 26, None, None, 3, (0, 0, 8, 0)),
+        )
+        about_btn.setIconSize(QSize(26, 26))
+        about_btn.on_clicked(lambda: self._switch_page(1))
+        self._menu_buttons.append(about_btn)
+
+        return [keyboard_btn, about_btn]
 
     def _switch_page(self, index: int):
         """Chuyển đổi giữa các page"""

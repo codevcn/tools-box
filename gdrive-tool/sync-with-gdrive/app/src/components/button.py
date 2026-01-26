@@ -1,7 +1,8 @@
 from PySide6.QtWidgets import QPushButton, QHBoxLayout
 from PySide6.QtCore import Qt, QSize
-from PySide6.QtGui import QIcon, QPixmap
+from PySide6.QtGui import QIcon, QPixmap, QColor, QPainter
 from typing import Callable
+from PySide6.QtSvg import QSvgRenderer
 
 # Import component LoadingDots của bạn
 from components.loading import LoadingDots
@@ -99,6 +100,11 @@ class CustomButton(QPushButton):
             size = icon_size if icon_size else 14
             self.setIconSize(QSize(size, size))
 
+    def setIcon(self, icon: QIcon | QPixmap) -> None:
+        if not self._is_loading:
+            self._original_icon = icon
+        return super().setIcon(icon)
+
     def clear_icon(self) -> None:
         """Remove icon hiện tại khỏi button."""
         self.setIcon(QIcon())
@@ -153,3 +159,62 @@ class CustomButton(QPushButton):
         self._loader.update_properties(
             color=color, dot_size=size, speed_factor=speed, stagger_delay=stagger_delay
         )
+
+    def update_icon_color(self, color: str, size: int | None = None) -> None:
+        """
+        Đổi màu icon hiện tại.
+        Fix lỗi: Tự động giữ nguyên độ phân giải gốc của ảnh thay vì co về size mặc định.
+        """
+        current_icon = super().icon()
+        if current_icon.isNull():
+            return
+
+        # --- FIX 1: Xác định kích thước vẽ (Render Size) ---
+        if size is not None:
+            # Nếu user chỉ định size cụ thể -> Dùng size đó
+            render_size = QSize(size, size)
+        else:
+            # Nếu không chỉ định -> Lấy kích thước THỰC TẾ lớn nhất của ảnh gốc
+            # QSize(1024, 1024) là giới hạn trên để Qt tìm size ảnh gốc to nhất có thể
+            actual_size = current_icon.actualSize(QSize(1024, 1024))
+
+            # Phòng trường hợp actualSize trả về quá bé (ví dụ icon rỗng),
+            # ta lấy max giữa nó và iconSize hiện tại của nút
+            current_btn_size = self.iconSize()
+            render_size = QSize(
+                max(actual_size.width(), current_btn_size.width()),
+                max(actual_size.height(), current_btn_size.height()),
+            )
+
+        # 3. Trích xuất Pixmap từ Icon ở kích thước đã tính
+        src_pixmap = current_icon.pixmap(render_size)
+
+        if src_pixmap.isNull():
+            return
+
+        # 4. Tạo canvas vẽ
+        dest_pixmap = QPixmap(render_size)
+        dest_pixmap.fill(Qt.GlobalColor.transparent)
+
+        # 5. Tô màu (Masking)
+        painter = QPainter(dest_pixmap)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
+
+        painter.drawPixmap(0, 0, src_pixmap)
+        painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceIn)
+        painter.fillRect(dest_pixmap.rect(), QColor(color))
+        painter.end()
+
+        # 6. Cập nhật Icon mới
+        new_icon = QIcon(dest_pixmap)
+
+        if not self._is_loading:
+            self._original_icon = new_icon
+
+        super().setIcon(new_icon)
+
+        # --- FIX 2: Chỉ đổi kích thước hiển thị của nút NẾU user truyền tham số size ---
+        # Nếu size=None, ta chỉ đổi màu ảnh, còn kích thước hiển thị giữ nguyên như cũ
+        if size is not None:
+            self.setIconSize(render_size)

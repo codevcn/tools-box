@@ -1,0 +1,84 @@
+Tree view of: D:\D-Documents\TOOLs\gdrive-tool\sync-with-gdrive
+
+├── .github
+│   └── copilot-instructions.md
+├── .gitignore
+├── README.md
+├── add_sync_with_gdrive.reg
+├── app
+│   ├── dev
+│   │   └── icons.txt
+│   └── src
+│       ├── __init__.py
+│       ├── active_remote_info.py
+│       ├── app.py
+│       ├── assets
+│       │   ├── app.ico
+│       │   └── images
+│       │       └── svg
+│       │           ├── archive_icon.svg
+│       │           ├── audio_icon.svg
+│       │           ├── browse_file_icon.svg
+│       │           ├── check_icon.svg
+│       │           ├── close_icon.svg
+│       │           ├── cloud_check_icon.svg
+│       │           ├── code_icon.svg
+│       │           ├── double_check_icon.svg
+│       │           ├── error_icon.svg
+│       │           ├── excel_icon.svg
+│       │           ├── expand_icon.svg
+│       │           ├── file_icon.svg
+│       │           ├── folder_icon.svg
+│       │           ├── gdrive_logo_icon.svg
+│       │           ├── image_icon.svg
+│       │           ├── info_icon.svg
+│       │           ├── json_icon.svg
+│       │           ├── keyboard_icon.svg
+│       │           ├── login_icon.svg
+│       │           ├── markdown_icon.svg
+│       │           ├── pdf_icon.svg
+│       │           ├── ppt_icon.svg
+│       │           ├── settings_icon.svg
+│       │           ├── txt_icon.svg
+│       │           ├── video_icon.svg
+│       │           ├── warn_icon.svg
+│       │           └── word_icon.svg
+│       ├── components
+│       │   ├── announcement.py
+│       │   ├── button.py
+│       │   ├── divider.py
+│       │   ├── flow_layout.py
+│       │   ├── label.py
+│       │   ├── loading.py
+│       │   ├── overlay.py
+│       │   ├── scrollable_text.py
+│       │   ├── select_box.py
+│       │   ├── selected_file_box.py
+│       │   └── tooltip.py
+│       ├── configs
+│       │   └── configs.py
+│       ├── data
+│       │   ├── data_manager.py
+│       │   └── sync-with-gdrive.json
+│       ├── login_gdrive_screen.py
+│       ├── mixins
+│       │   └── keyboard_shortcuts.py
+│       ├── settings_screen.py
+│       ├── sync_progress.py
+│       ├── testing
+│       │   ├── log-sample.txt
+│       │   └── mock_sync_worker.py
+│       ├── utils
+│       │   └── helpers.py
+│       └── workers
+│           ├── authorize_gdrive_worker.py
+│           └── sync_worker.py
+├── app_logo.ico
+├── app_logo.svg
+├── dev.cmd
+├── note.md
+├── print_project_tree.py
+├── project_tree.txt
+├── run_app.py
+├── run_app_multi.py
+└── test.cmd

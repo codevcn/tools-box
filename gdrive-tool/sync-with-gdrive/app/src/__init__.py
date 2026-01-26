@@ -1,0 +1,5 @@
+__app_name__ = "SynRive"
+__version__ = "0.1.1"
+__author__ = "CodeVCN"
+__exe_name__ = "sync-with-gdrive.exe"
+__description__ = "App đồng bộ file giữa máy tính và Google Drive một cách dễ dàng."
