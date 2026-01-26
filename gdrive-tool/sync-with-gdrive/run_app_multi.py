@@ -95,7 +95,7 @@ def run_master(initial_file_path: str):
                 # Không còn Slave nào gửi file nữa, dừng gom.
                 # --- LOGIC XỬ LÝ CHÍNH ---
                 run_app(files_to_process)
-                return  # Kết thúc Master
+                break
     except Exception as e:
         raise e
     finally:
