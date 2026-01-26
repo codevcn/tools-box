@@ -16,7 +16,7 @@ HOST = "127.0.0.1"
 
 # Thời gian chờ (giây). Nếu sau khoảng này không có thêm file nào, Master sẽ chốt đơn.
 # Windows gửi các lệnh rất nhanh, nên 0.2 - 0.5 là đủ an toàn và nhanh.
-SLIDING_TIMEOUT = 2.0
+SLIDING_TIMEOUT = 1.0
 
 # Kích thước message khi socket nhận dữ liệu.
 # 4096 là "tiêu chuẩn vàng" (convention) trong lập trình mạng và hệ thống, đủ lớn để chứa trọn vẹn các gói tin TCP trong ngữ cảnh truyền path string này.
