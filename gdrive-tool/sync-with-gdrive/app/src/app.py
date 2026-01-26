@@ -354,7 +354,6 @@ class MainWindow(QWidget):
         """Callback khi user chọn remote từ window"""
         self._active_remote = remote_name
         self._active_remote_label.setText(remote_name)
-        print(f">>> Active remote changed to: {remote_name}")
 
     def _on_gdrive_path_input_enter_pressed(self) -> None:
         """Xử lý khi người dùng nhấn Enter trong input path."""
@@ -420,9 +419,6 @@ class MainWindow(QWidget):
         self, login_result: LoginResult, remote_name: str, err_msg: str
     ) -> None:
         """Xử lý khi đăng nhập Google Drive thành công."""
-        print(
-            f">>> Login result: {login_result}, remote_name={remote_name}, err_msg={err_msg}"
-        )
         self._load_saved_user_data()
 
     def _do_login_gdrive(self) -> None:
@@ -668,7 +664,6 @@ class MainWindow(QWidget):
             self._reset_sync_indicators()
 
     def _on_sync_finished(self, code: int, status: QProcess.ExitStatus) -> None:
-        print(f">>> Sync finished with code={code}, status={status}")
         self._reset_sync_indicators()
         self._data_manager.save_last_gdrive_entered_dir(self._current_gdrive_path)
         if self._sync_progress_dialog:
@@ -676,7 +671,6 @@ class MainWindow(QWidget):
             self._sync_progress_dialog = None
 
     def _on_sync_error(self, msg: str) -> None:
-        print(f">>> Sync error: {msg}")
         self._is_syncing = False
         self._render_sync_button_section()
         popup = CustomDialog(
@@ -770,6 +764,45 @@ class MainWindow(QWidget):
         self._render_user_data(self._data_manager.get_entire_config())
 
 
+def santize_input_paths() -> list[str]:
+    """
+    Lấy danh sách path được truyền từ lệnh ngoài.
+    - Bỏ argv[0] (script path)
+    - Chuẩn hóa path
+    - Loại bỏ trùng
+    - Loại bỏ path không tồn tại
+    - Giữ nguyên thứ tự
+    """
+
+    raw_args = sys.argv[1:]
+
+    seen = set()
+    result: list[str] = []
+
+    for arg in raw_args:
+        if not arg:
+            continue
+
+        try:
+            path = Path(arg).resolve()
+        except (OSError, RuntimeError) as e:
+            # resolve() có thể raise exception với path không hợp lệ
+            continue
+
+        # Bỏ qua path không tồn tại
+        if not path.exists():
+            continue
+
+        abs_path = str(path.absolute())
+        if abs_path in seen:
+            continue
+
+        seen.add(abs_path)
+        result.append(abs_path)
+
+    return result
+
+
 def init_app() -> None:
     """Hàm khởi tạo ứng dụng."""
     app = QApplication(sys.argv)
@@ -777,16 +810,9 @@ def init_app() -> None:
     font.setPointSize(14)
     app.setFont(font)
 
-    # Lấy danh sách paths từ command line arguments
-    local_paths = []
-    for arg in sys.argv[1:]:
-        path = Path(arg)
-        if path.exists():
-            local_paths.append(str(path.absolute()))
-        else:
-            print(f"⚠️ Path không tồn tại: {arg}")
+    # Lấy và sanitize input paths
+    local_paths = santize_input_paths()
 
-    print(">>> Local paths to sync:", local_paths)
     window = MainWindow(local_paths)
     window.show()
     sys.exit(app.exec())
