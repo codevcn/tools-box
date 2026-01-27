@@ -9,7 +9,7 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt, Signal, QSize
 from PySide6.QtGui import QCursor
 from components.button import CustomButton
-from data.data_manager import DataManager
+from data.data_manager import UserDataManager
 from utils.helpers import get_svg_as_icon
 from configs.configs import ThemeColors
 from components.label import CustomLabel
@@ -86,7 +86,7 @@ class ActiveRemoteScreen(KeyboardShortcutsDialogMixin):
 
     def __init__(self, parent: QWidget):
         super().__init__(parent)
-        self._data_manager = DataManager()
+        self._data_manager = UserDataManager()
         self._remotes_layout: QVBoxLayout
         self._setup_ui()
         self._load_remotes()

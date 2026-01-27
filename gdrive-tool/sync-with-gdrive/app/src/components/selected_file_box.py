@@ -1,16 +1,18 @@
 from PySide6.QtWidgets import QFrame, QLabel, QHBoxLayout, QSizePolicy
 from PySide6.QtCore import Qt, Signal
-from utils.helpers import svg_to_pixmap
+from utils.helpers import get_svg_as_icon
 from typing import Callable
 
 
 class FileInfoBox(QFrame):
-    is_clicked = Signal()
+    _is_clicked = Signal()
+    _is_mouse_in = Signal()  # Signal khi chuột vào
+    _is_mouse_out = Signal()  # Signal khi chuột ra
 
     def __init__(
         self,
         text: str,
-        svg_path: str,
+        svg_name: str,
         svg_fill_color: str | None = None,
         svg_stroke_color: str | None = None,
         parent=None,
@@ -22,13 +24,13 @@ class FileInfoBox(QFrame):
         self.setCursor(Qt.CursorShape.PointingHandCursor)
 
         layout = QHBoxLayout(self)
-        layout.setContentsMargins(12, 4, 12, 6)  # padding trong box
+        layout.setContentsMargins(12, 4, 12, 6)
         layout.setSpacing(8)
 
         icon = QLabel()
         icon.setPixmap(
-            svg_to_pixmap(
-                svg_path, 18, fill_color=svg_fill_color, stroke_color=svg_stroke_color
+            get_svg_as_icon(
+                svg_name, 18, fill_color=svg_fill_color, stroke_color=svg_stroke_color
             )
         )
         icon.setFixedSize(18, 18)
@@ -42,7 +44,6 @@ class FileInfoBox(QFrame):
         layout.addWidget(icon)
         layout.addWidget(label)
 
-        # style: bo tròn + nền + border
         self.setStyleSheet(
             """
             #FileInfoBox {
@@ -59,9 +60,30 @@ class FileInfoBox(QFrame):
             """
         )
 
+    # --- CÁC HÀM XỬ LÝ SỰ KIỆN (OVERRIDES) ---
     def mousePressEvent(self, event):
-        self.is_clicked.emit()
+        """Chạy khi Widget bị click"""
+        self._is_clicked.emit()
         super().mousePressEvent(event)
 
+    def enterEvent(self, event):
+        """Chạy khi chuột đi vào vùng Widget"""
+        self._is_mouse_in.emit()  # Phát tín hiệu
+        super().enterEvent(event)
+
+    def leaveEvent(self, event):
+        """Chạy khi chuột rời khỏi vùng Widget"""
+        self._is_mouse_out.emit()  # Phát tín hiệu
+        super().leaveEvent(event)
+
+    # --- CÁC HÀM ĐĂNG KÝ CALLBACK ---
     def on_clicked(self, callback: Callable):
-        self.is_clicked.connect(callback)
+        self._is_clicked.connect(callback)
+
+    def on_mouse_in(self, callback: Callable):
+        """Gán hàm sẽ chạy khi di chuột vào"""
+        self._is_mouse_in.connect(callback)
+
+    def on_mouse_out(self, callback: Callable):
+        """Gán hàm sẽ chạy khi di chuột ra"""
+        self._is_mouse_out.connect(callback)

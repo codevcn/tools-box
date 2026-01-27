@@ -38,7 +38,7 @@ if __name__ == "__main__":
         ".husky",
         ".vscode",
         "dist",
-        "migrations",
+        ".venv-build",
     ]  # Các thư mục cần loại trừ
     output_file = "project_tree.txt"
 

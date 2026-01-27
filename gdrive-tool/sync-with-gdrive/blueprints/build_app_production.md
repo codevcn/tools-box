@@ -1,23 +1,22 @@
-Câu này hỏi **rất đúng thời điểm** luôn đó 😄
-“Đóng gói ra production” không chỉ là *build ra file exe* — mà là chuyển từ **code cho dev** sang **sản phẩm cho người dùng**.
+“Đóng gói ra production” không chỉ là _build ra file exe_ — mà là chuyển từ **code cho dev** sang **sản phẩm cho người dùng**.
 Tư duy chuẩn gói gọn trong mấy trục quan trọng này:
 
 ---
 
-## 1️⃣ Tư duy: *Production ≠ Development*
+## 1️⃣ Tư duy: _Production ≠ Development_
 
 Dev thì:
 
-* Code chạy được là ok
-* Log càng nhiều càng tốt
-* Lỗi thì mở terminal xem
+- Code chạy được là ok
+- Log càng nhiều càng tốt
+- Lỗi thì mở terminal xem
 
 Production thì:
 
-* ❌ Không có terminal
-* ❌ Không ai biết Python là gì
-* ❌ Không ai đọc stacktrace
-* ✅ Chỉ có: **app + hành vi ổn định**
+- ❌ Không có terminal
+- ❌ Không ai biết Python là gì
+- ❌ Không ai đọc stacktrace
+- ✅ Chỉ có: **app + hành vi ổn định**
 
 👉 Câu hỏi bạn luôn phải tự hỏi:
 
@@ -25,35 +24,35 @@ Production thì:
 
 ---
 
-## 2️⃣ Đóng gói không phải là bước cuối — mà là bước *kiểm tra*
+## 2️⃣ Đóng gói không phải là bước cuối — mà là bước _kiểm tra_
 
 Trước khi build, phải đảm bảo:
 
 ### ✅ Không phụ thuộc môi trường dev
 
-* Không dùng path kiểu:
+- Không dùng path kiểu:
   `C:\Users\you\Desktop\project\...`
-* Không cần cài Python
-* Không cần set biến môi trường thủ công
+- Không cần cài Python
+- Không cần set biến môi trường thủ công
 
 👉 Mọi thứ phải:
 
-* relative path
-* hoặc nằm trong thư mục app
+- relative path
+- hoặc nằm trong thư mục app
 
 ---
 
-## 3️⃣ Quản lý lỗi: *crash là thất bại nặng nhất*
+## 3️⃣ Quản lý lỗi: _crash là thất bại nặng nhất_
 
 Trong production:
 
-* In log ra console = vô nghĩa
-* `print()` = vô hình
+- In log ra console = vô nghĩa
+- `print()` = vô hình
 
 Tư duy chuẩn:
 
-* Lỗi **phải được bắt**
-* Và **phải nói chuyện với user bằng ngôn ngữ người**
+- Lỗi **phải được bắt**
+- Và **phải nói chuyện với user bằng ngôn ngữ người**
 
 Ví dụ:
 ❌ `FileNotFoundError: [Errno 2]`
@@ -72,11 +71,10 @@ open("config.json")
 
 Trong production:
 
-* file đó có thể:
-
-  * nằm cạnh exe
-  * hoặc nằm trong bundle
-  * hoặc nằm trong AppData
+- file đó có thể:
+  - nằm cạnh exe
+  - hoặc nằm trong bundle
+  - hoặc nằm trong AppData
 
 👉 Tư duy:
 
@@ -90,19 +88,17 @@ Nếu không trả lời được → chưa sẵn sàng production.
 
 Production mindset:
 
-* Người dùng:
-
-  * sẽ tắt app
-  * mở lại
-  * update app
-  * nhưng **dữ liệu họ không được mất**
+- Người dùng:
+  - sẽ tắt app
+  - mở lại
+  - update app
+  - nhưng **dữ liệu họ không được mất**
 
 Nên:
 
-* Config, token, cache → để:
-
-  * `%AppData%/YourApp`
-  * không để trong thư mục exe
+- Config, token, cache → để:
+  - `%AppData%/YourApp`
+  - không để trong thư mục exe
 
 ---
 
@@ -110,13 +106,12 @@ Nên:
 
 Một bản build tốt:
 
-* Double click → chạy
-* Không cần:
-
-  * Python
-  * pip
-  * terminal
-  * setup môi trường
+- Double click → chạy
+- Không cần:
+  - Python
+  - pip
+  - terminal
+  - setup môi trường
 
 Tư duy:
 
@@ -128,13 +123,13 @@ Tư duy:
 
 Test kiểu:
 
-* Copy file exe sang:
+- Copy file exe sang:
+  - máy khác
+  - user khác
+  - không có Python
 
-  * máy khác
-  * user khác
-  * không có Python
-* Xóa folder project gốc
-* Chạy exe
+- Xóa folder project gốc
+- Chạy exe
 
 Nếu còn chạy được → mới gọi là build
 
@@ -144,11 +139,10 @@ Nếu còn chạy được → mới gọi là build
 
 Tư duy chuẩn:
 
-* Mỗi bản build phải có:
-
-  * version
-  * changelog
-  * ngày build
+- Mỗi bản build phải có:
+  - version
+  - changelog
+  - ngày build
 
 Ví dụ:
 

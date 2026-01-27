@@ -1,5 +1,4 @@
 from PySide6.QtWidgets import (
-    QDialog,
     QVBoxLayout,
     QLineEdit,
     QFrame,
@@ -9,14 +8,15 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt, QSize, Signal
 from components.announcement import CustomAnnounce
-from data.data_manager import DataManager
-from utils.helpers import get_svg_file_path, svg_to_pixmap
+from data.data_manager import UserDataManager
+from utils.helpers import get_svg_as_icon
 from configs.configs import ThemeColors
 from components.label import AutoHeightLabel, CustomLabel
 from PySide6.QtGui import QFontMetrics
 from components.button import CustomButton
 from workers.authorize_gdrive_worker import RcloneDriveSetup
 from enum import Enum
+from mixins.keyboard_shortcuts import KeyboardShortcutsDialogMixin
 
 
 class LoginResult(Enum):
@@ -25,28 +25,28 @@ class LoginResult(Enum):
     INTERRUPTED = 3  # user đóng tab trình duyệt trong quá trình login
 
 
-class LoginGDriveScreen(QDialog):
+class LoginGDriveScreen(KeyboardShortcutsDialogMixin):
     login_result = Signal(LoginResult, str, str)  # (result, remote_name, error_msg)
 
     def __init__(self, parent: QWidget):
         super().__init__(parent)
-        self._data_manager: DataManager = DataManager()
+        self._data_manager: UserDataManager = UserDataManager()
         self._remote_name_input: QLineEdit
         self._action_button: CustomButton
         self._rclone_setup: RcloneDriveSetup = RcloneDriveSetup(parent=self)
         self._rclone_setup.log.connect(self._on_login_log)
         self._rclone_setup.done.connect(self._on_login_done)
         self._pending_remote_name: str | None = None
-        self._action_btn_svg_pixmap_enabled = svg_to_pixmap(
-            get_svg_file_path("double_check_icon")[0],
+        self._action_btn_svg_pixmap_enabled = get_svg_as_icon(
+            "double_check_icon",
             30,
             None,
             "#000000",
             3,
             (0, 0, 8, 0),
         )
-        self._action_btn_svg_pixmap_disabled = svg_to_pixmap(
-            get_svg_file_path("double_check_icon")[0],
+        self._action_btn_svg_pixmap_disabled = get_svg_as_icon(
+            "double_check_icon",
             30,
             None,
             "#b8b8b8",
@@ -224,8 +224,8 @@ class LoginGDriveScreen(QDialog):
                 self,
                 title="Lỗi",
                 text=msg,
-                icon_pixmap=svg_to_pixmap(
-                    get_svg_file_path("warn_icon")[0],
+                icon_pixmap=get_svg_as_icon(
+                    "warn_icon",
                     35,
                     None,
                     "#ff0000",
@@ -250,8 +250,8 @@ class LoginGDriveScreen(QDialog):
                 self,
                 title="Lỗi",
                 text="Vui lòng nhập tên kho lưu trữ trước khi đăng nhập.",
-                icon_pixmap=svg_to_pixmap(
-                    get_svg_file_path("warn_icon")[0],
+                icon_pixmap=get_svg_as_icon(
+                    "warn_icon",
                     35,
                     None,
                     "#ff0000",

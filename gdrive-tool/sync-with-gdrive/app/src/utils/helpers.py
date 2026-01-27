@@ -3,11 +3,42 @@ from pathlib import Path
 import os
 import json
 from typing import Iterable, Optional, Any
-from configs.configs import PATH_TYPE, CODE_EXTENSIONS, MEDIA_EXTENSIONS
+from configs.configs import PathType, CODE_EXTENSIONS, MEDIA_EXTENSIONS
 from PySide6.QtSvg import QSvgRenderer
 from PySide6.QtGui import QPixmap, QPainter
-from PySide6.QtCore import Qt, QRectF
+from PySide6.QtCore import Qt, QRectF, QFile, QIODevice
 import re
+import sys
+
+
+def app_data_dir() -> Path:
+    appdata = os.getenv("APPDATA")  # Windows
+    if not appdata:
+        # fallback hiếm
+        appdata = str(Path.home() / "AppData" / "Roaming")
+    path = Path(appdata) / "SynRive"
+    path.mkdir(parents=True, exist_ok=True)
+    return path
+
+
+def project_root_dir() -> Path:
+    if getattr(sys, "frozen", False):
+        return Path(getattr(sys, "_MEIPASS"))
+    return Path(__file__).resolve().parents[3]
+
+
+def resolve_from_root_dir(*parts: str) -> str:
+    return str(project_root_dir().joinpath(*parts))
+
+
+def _normalize_qrc_path(path: str) -> str:
+    if not path:
+        return path
+    if path.startswith(":/"):
+        return path
+    if path.startswith(":"):
+        return f":/{path[1:].lstrip('/')}"
+    return path
 
 
 def extract_common_folder(paths: Iterable[str]) -> Path:
@@ -31,7 +62,7 @@ def extract_common_folder_str(paths: Iterable[str]) -> str:
     return extract_common_folder(paths).as_posix()
 
 
-def detect_path_type(path_str: str) -> PATH_TYPE:
+def detect_path_type(path_str: str) -> PathType:
     """
     Phát hiện loại của path:
     - "not_exists": nếu path không tồn tại
@@ -43,15 +74,15 @@ def detect_path_type(path_str: str) -> PATH_TYPE:
         path = Path(path_str)
 
         if not path.exists():
-            return "not_exists"
+            return PathType.NOT_EXISTS
         if path.is_file():
-            return "file"
+            return PathType.FILE
         if path.is_dir():
-            return "folder"
+            return PathType.FOLDER
 
-        return "invalid"  # symlink đặc biệt, socket, ...
+        return PathType.INVALID  # symlink đặc biệt, socket, ...
     except Exception:
-        return "invalid"
+        return PathType.INVALID
 
 
 def detect_file_extension(path_str: str) -> Optional[str]:
@@ -212,12 +243,23 @@ def svg_to_pixmap(
     """
 
     # 1. Đọc và xử lý nội dung SVG (giữ nguyên logic của bạn)
-    try:
-        with open(svg_path, "r", encoding="utf-8") as f:
-            svg_content = f.read()
-    except Exception as e:
-        print(f"Error reading SVG: {e}")
-        return QPixmap()
+    svg_path = _normalize_qrc_path(svg_path)
+    svg_content = ""
+    if svg_path.startswith(":/"):
+        qfile = QFile(svg_path)
+        if not qfile.open(QIODevice.OpenModeFlag.ReadOnly):
+            print(f"Error reading SVG: {qfile.errorString()} ({svg_path})")
+            return QPixmap()
+        raw_data = qfile.readAll().data()
+        svg_content = bytes(raw_data).decode("utf-8", errors="replace")
+        qfile.close()
+    else:
+        try:
+            with open(svg_path, "r", encoding="utf-8") as f:
+                svg_content = f.read()
+        except Exception as e:
+            print(f"Error reading SVG: {e}")
+            return QPixmap()
 
     # Thay thế màu sắc
     if fill_color:
@@ -289,9 +331,8 @@ def svg_to_pixmap(
 
 def get_svg_file_path(svg_name: str) -> tuple[str, str]:
     """Lấy đường dẫn đầy đủ đến file SVG trong thư mục assets."""
-    src_dir = Path(__file__).resolve().parent.parent
-    prefix_path = f"{src_dir}\\assets\\images\\svg"
-    svg = f"{prefix_path}\\{svg_name}.svg"
+    prefix_path = f":/icons"
+    svg = f"{prefix_path}/{svg_name}.svg"
     return svg, prefix_path
 
 

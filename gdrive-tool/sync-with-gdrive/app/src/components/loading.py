@@ -6,11 +6,6 @@ from PySide6.QtWidgets import (
 )
 
 
-# from configs.configs import ThemeColors # Giả lập import nếu bạn không có file này
-class ThemeColors:
-    MAIN = "#3498db"
-
-
 class LoadingDots(QWidget):
     def __init__(
         self,

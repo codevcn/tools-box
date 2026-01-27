@@ -1,14 +1,15 @@
+import resources_rc  # noqa: F401
 import sys
 from pathlib import Path
 from PySide6.QtWidgets import (
     QApplication,
-    QWidget,
     QVBoxLayout,
     QHBoxLayout,
     QLineEdit,
     QFileDialog,
     QSizePolicy,
     QFrame,
+    QScrollArea,
 )
 from PySide6.QtGui import QKeySequence, QShortcut, QIcon
 from PySide6.QtCore import QProcess, QSize, Qt, QTimer
@@ -25,8 +26,6 @@ from utils.helpers import (
     detect_path_type,
     extract_filename_with_ext,
     get_svg_as_icon,
-    get_svg_file_path,
-    svg_to_pixmap,
 )
 from components.flow_layout import CustomFlowLayout
 from components.selected_file_box import FileInfoBox
@@ -40,16 +39,18 @@ from workers.sync_worker import (
 )
 
 # from testing.mock_sync_worker import MockRcloneSyncWorker
-from data.data_manager import ConfigSchema, DataManager
-from configs.configs import PATH_TYPE, SyncError, ThemeColors
+from data.data_manager import UserDataConfigSchema, UserDataManager
+from configs.configs import PathType, SyncError, ThemeColors
 from components.button import CustomButton
 from components.overlay import CustomOverlay
 from settings_screen import SettingsScreen
 import os
 import subprocess
+from components.window_title_bar import CustomWindowTitleBar
+from mixins.app_window import AppWindowMixin
 
 
-class MainWindow(QWidget):
+class MainWindow(AppWindowMixin):
     """Main window cho ứng dụng sync folder."""
 
     def __init__(self, local_paths: list[str]):
@@ -57,15 +58,15 @@ class MainWindow(QWidget):
         self._sync_worker: RcloneSyncWorker | None = None
         # self._sync_worker: MockRcloneSyncWorker | None = None
         self._sync_progress_dialog: SyncProgressDialog | None = None
-        self._data_manager: DataManager = DataManager()
+        self._data_manager: UserDataManager = UserDataManager()
         self._root_layout: QVBoxLayout
         self._top_menu_layout: QHBoxLayout
         self._local_paths_list = local_paths
         self._gdrive_path_input: QLineEdit
         self._current_gdrive_path: str = ""
         self._active_remote: str
-        self._selected_docs_preview: QWidget | None = None
-        self._selected_docs_layout: QVBoxLayout
+        self._selected_docs_preview: QVBoxLayout
+        self._selected_docs_flow: CustomFlowLayout
         self._sync_btn: CustomButton | None = None
         self._is_syncing: bool = False
         self._log_output: ScrollableText
@@ -74,27 +75,21 @@ class MainWindow(QWidget):
         self._copy_log_btn: CustomButton
         self._settings_dialog: SettingsScreen | None = None
         self._setup_ui()
-        self._set_local_paths_list(local_paths)
-        self._add_catch_keyboard_shortcuts()
+        self._add_keyboard_shortcuts()
+        # Chạy animation mở app ngay khi giao diện hiển thị
+        QTimer.singleShot(0, self._animate_open_zoom)
+        # Thiết lập danh sách local paths ban đầu
+        QTimer.singleShot(
+            0, lambda paths=local_paths: self._set_local_paths_list(paths)
+        )
 
     def _set_local_paths_list(self, paths: list[str]) -> None:
         self._local_paths_list = paths
-        self._render_selected_docs_preview()
+        self._update_selected_docs_preview()
 
-    def _close_app(self) -> None:
-        """Đóng ứng dụng."""
-        QApplication.quit()
-        sys.exit(0)
-
-    def _add_catch_keyboard_shortcuts(self) -> None:
+    def _add_keyboard_shortcuts(self) -> None:
         """Bắt sự kiện nhấn các tổ hợp phím."""
-        # Ctrl + Q (thoát ứng dụng)
-        shortcut_ctrl_q = QShortcut(QKeySequence("Ctrl+Q"), self)
-        shortcut_ctrl_q.activated.connect(self._close_app)
-
-        # Alt + Q (thoát ứng dụng)
-        shortcut_alt_q = QShortcut(QKeySequence("Alt+Q"), self)
-        shortcut_alt_q.activated.connect(self._close_app)
+        super()._add_keyboard_shortcuts()
 
         # Ctrl + Enter (đồng bộ ngay)
         shortcut_ctrl_enter = QShortcut(QKeySequence("Ctrl+Return"), self)
@@ -108,21 +103,112 @@ class MainWindow(QWidget):
         shortcut_ctrl_i = QShortcut(QKeySequence("Ctrl+I"), self)
         shortcut_ctrl_i.activated.connect(self._open_settings_screen)
 
+        # Ctrl + L (login Google Drive)
+        shortcut_ctrl_l = QShortcut(QKeySequence("Ctrl+L"), self)
+        shortcut_ctrl_l.activated.connect(self._do_login_gdrive)
+
     def _setup_ui(self) -> None:
         """Thiết lập giao diện người dùng."""
         self.setWindowTitle("Đồng bộ với Google Drive")
         self.setWindowIcon(QIcon("app/src/assets/app.ico"))
         self.setMinimumWidth(800)
-        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
 
-        root_layout = QVBoxLayout(self)
-        root_layout.setSizeConstraints(
-            QVBoxLayout.SizeConstraint.SetMaximumSize,
-            QVBoxLayout.SizeConstraint.SetFixedSize,
+        # Ẩn thanh tiêu đề gốc của hệ điều hành
+        self.setWindowFlags(Qt.WindowType.FramelessWindowHint)
+        self.setAttribute(
+            Qt.WidgetAttribute.WA_TranslucentBackground, True
+        )  # Nền trong suốt để bo góc thật sự
+
+        app_container = QVBoxLayout(self)
+        app_container.setContentsMargins(0, 0, 0, 0)
+        app_container.setSpacing(0)
+
+        self._root_shell.setObjectName("RootShell")
+        self._root_shell.setStyleSheet(
+            f"""
+            #RootShell {{
+                border-radius: 8px; /* Bo góc mặc định */
+                background-color: {ThemeColors.BLACK_BACKGROUND};
+                border: 1px solid {ThemeColors.GRAY_BORDER};
+            }}
+            #RootShell[is_focused="true"] {{
+                border: 1px solid {ThemeColors.MAIN}; 
+            }}
+            /* Khi phóng to toàn màn hình -> Vuông góc và bỏ viền */
+            #RootShell[is_maximized="true"] {{
+                border-radius: 0px;
+                border: none;
+            }}
+            #BrowseLocalButton {{
+                padding: 2px 12px 4px;
+                background-color: {ThemeColors.MAIN};
+                color: black;
+            }}
+            #LoginGDriveButton {{
+                padding: 2px 12px 4px;
+                background-color: {ThemeColors.MAIN};
+                color: black;
+            }}
+            #SettingsButton {{
+                background-color: {ThemeColors.GRAY_BACKGROUND};
+                color: black;
+            }}
+            #ActiveRemoteBar {{
+                background-color: {ThemeColors.GRAY_BACKGROUND};
+                border: 1px solid {ThemeColors.GRAY_BORDER};
+                border-radius: 8px;
+            }}
+            #ActiveRemoteBar:hover {{
+                background-color: #3d3d3d;
+            }}
+            #GDrivePathInput {{
+                border: 1px solid {ThemeColors.GRAY_BORDER};
+                border-bottom: 2px solid {ThemeColors.STRONG_GRAY};
+                border-radius: 8px;
+                padding: 4px 8px 6px;
+            }}
+            #GDrivePathInput:hover {{
+                border-color: {ThemeColors.MAIN};
+            }}
+            #GDrivePathInput:focus {{
+                border-color: {ThemeColors.MAIN};
+            }}
+            #ScrollableTextScroll {{
+                background-color: {ThemeColors.GRAY_BACKGROUND};
+                border: 1px solid {ThemeColors.GRAY_BORDER};
+                border-radius: 12px;
+            }}
+            #ScrollableTextLabel {{
+                background-color: {ThemeColors.GRAY_BACKGROUND};
+                border-radius: 12px;
+                color: white;
+            }}
+            #CopyLogButton {{
+                background-color: transparent;
+                border: none;
+                padding: 2px 6px 4px;
+            }}
+            #SyncButton {{
+                background-color: {ThemeColors.MAIN};
+                color: black;
+            }}
+            #QuitAppButton {{
+                background-color: {ThemeColors.STRONG_GRAY};
+                color: black;
+            }}
+            """
         )
-        root_layout.setContentsMargins(12, 8, 12, 8)
+        self._root_shell.setSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding
+        )
+        root_layout = QVBoxLayout(self._root_shell)
+        root_layout.setContentsMargins(0, 0, 0, 0)
         root_layout.setSpacing(4)
         self._root_layout = root_layout
+
+        # Custom title bar
+        self._title_bar = CustomWindowTitleBar(self)
+        root_layout.addWidget(self._title_bar)
 
         # Top menu section
         top_menu_frame = QFrame()
@@ -146,42 +232,42 @@ class MainWindow(QWidget):
         )
 
         # Selected docs preview section
-        self._selected_docs_layout = QVBoxLayout()
-        self._selected_docs_layout.setSpacing(4)
-        self._selected_docs_layout.setContentsMargins(0, 16, 0, 0)
-        selected_docs_label = CustomLabel(
-            "Tệp và thư mục được chọn trên máy:", is_bold=True
-        )
-        selected_docs_label.setContentsMargins(6, 0, 0, 0)
-        self._selected_docs_layout.addWidget(selected_docs_label)
+        self._tmp_frame = QFrame()
+        self._selected_docs_preview = QVBoxLayout(self._tmp_frame)
+        self._selected_docs_preview.setSpacing(4)
+        self._selected_docs_preview.setContentsMargins(0, 16, 0, 0)
+        self._render_selected_docs_preview()
 
         # Output log section
         log_layout = self._create_log_section()
 
         # Main section layout
         main_layout_section = QVBoxLayout()
-        main_layout_section.setContentsMargins(0, 0, 0, 0)
+        main_layout_section.setContentsMargins(12, 8, 12, 8)
         main_layout_section.addWidget(top_menu_frame)
         main_layout_section.addWidget(divider)
         main_layout_section.addLayout(active_remote_info_layout)
         main_layout_section.addLayout(gdrive_layout)
-        main_layout_section.addLayout(self._selected_docs_layout)
+        main_layout_section.addWidget(self._tmp_frame)
         main_layout_section.addLayout(log_layout)
 
         root_layout.addLayout(main_layout_section)
         self._render_sync_button_section()
 
+        app_container.addWidget(self._root_shell)
+
         # Load saved user data
-        self._load_saved_user_data()
+        QTimer.singleShot(0, self._load_saved_user_data)
 
     def _render_top_menu(self) -> None:
         # Nút Browse local folder (bên trái)
         left_actions_layout = QHBoxLayout()
 
         browse_btn = CustomButton("Chọn thư mục/tệp...")
+        browse_btn.setObjectName("BrowseLocalButton")
         browse_btn.setIcon(
-            svg_to_pixmap(
-                get_svg_file_path("browse_file_icon")[0],
+            get_svg_as_icon(
+                "browse_file_icon",
                 26,
                 None,
                 "#000000",
@@ -189,15 +275,6 @@ class MainWindow(QWidget):
             )
         )
         browse_btn.setIconSize(QSize(26, 26))
-        browse_btn.setStyleSheet(
-            f"""
-            CustomButton {{
-                padding: 2px 12px 4px;
-                background-color: {ThemeColors.MAIN};
-                color: black;
-            }}
-            """
-        )
         browse_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         browse_btn.clicked.connect(self._browse_local_folder)
         browse_btn_font = browse_btn.font()
@@ -216,68 +293,86 @@ class MainWindow(QWidget):
 
     def _reveal_path_in_file_explorer(self, path: str) -> None:
         """Mở file explorer và chọn tệp/thư mục đã đồng bộ."""
-        path = os.path.abspath(path)
-        if os.path.isfile(path):
+        abs_path = os.path.abspath(path)
+        if os.path.isfile(abs_path):
             # Mở explorer và select file
-            subprocess.run(["explorer", "/select,", path])
-        elif os.path.isdir(path):
+            subprocess.run(["explorer", "/select,", abs_path])
+        elif os.path.isdir(abs_path):
             # Mở explorer tại folder
-            subprocess.run(["explorer", path])
+            subprocess.run(["explorer", abs_path])
         else:
-            raise FileNotFoundError(f"Path không tồn tại: {path}")
+            raise FileNotFoundError(f"Path không tồn tại: {abs_path}")
 
     def _render_selected_docs_preview(self) -> None:
-        # Tạo CustomFlowLayout và lưu reference
-        self.selected_docs_flow = CustomFlowLayout(
-            margins=(0, 4, 0, 0), h_spacing=8, v_spacing=8
+        """Khởi tạo preview các tệp/thư mục đã chọn."""
+        selected_docs_label = CustomLabel(
+            "Tệp và thư mục được chọn trên máy:", is_bold=True
+        )
+        selected_docs_label.setContentsMargins(6, 0, 0, 0)
+
+        self._selected_docs_frame_inner_scroll = QFrame()
+        self._selected_docs_flow = CustomFlowLayout(
+            margins=(0, 4, 0, 0),
+            h_spacing=8,
+            v_spacing=8,
+            parent=self._selected_docs_frame_inner_scroll,
         )
 
-        # Container để set layout
-        preview = QFrame()
-        preview.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-        preview.setLayout(self.selected_docs_flow)
+        selected_docs_scroll = QScrollArea()
+        selected_docs_scroll.setWidgetResizable(True)
+        selected_docs_scroll.setFrameShape(QScrollArea.Shape.NoFrame)
+        selected_docs_scroll.setHorizontalScrollBarPolicy(
+            Qt.ScrollBarPolicy.ScrollBarAlwaysOff
+        )
+        selected_docs_scroll.setMinimumHeight(100)
+        selected_docs_scroll.setMaximumHeight(160)
+        selected_docs_scroll.setWidget(self._selected_docs_frame_inner_scroll)
+
+        self._selected_docs_preview.addWidget(selected_docs_label)
+        self._selected_docs_preview.addWidget(selected_docs_scroll)
+
+    def _on_hover_selected_file_box(
+        self, file_info_box: FileInfoBox, path_str: str, path_type: PathType
+    ) -> None:
+        """Xử lý khi hover vào SelectedFileBox."""
+        ToolTipBinder(
+            file_info_box,
+            ToolTipConfig(
+                text=f"<b>{'Thư mục' if path_type=='folder' else 'Tệp'}</b>: {path_str}",
+                show_delay_ms=100,
+                constrain_to=CollisionConstraint.SCREEN,
+            ),
+        )
+
+    def _update_selected_docs_preview(self) -> None:
+        """Cập nhật lại preview các tệp/thư mục đã chọn."""
+        # Xoá hết item cũ
+        self._selected_docs_flow.clear_items()
 
         # Thêm nhiều box để thấy wrap
-        path_objects: list[tuple[str, str, PATH_TYPE]] = []
         for path in self._local_paths_list:
-            svg, prefix_path = get_svg_file_path("file_icon")
             path_type = detect_path_type(path)
+            content_type = "folder"
             if path_type == "file":
                 file_ext = detect_file_extension(path)
                 content_type = detect_content_type_by_file_extension(file_ext or "")
-                svg = f"{prefix_path}\\{content_type}_icon.svg"
-            elif path_type == "folder":
-                svg = f"{prefix_path}\\folder_icon.svg"
-            path_objects.append((svg, path, path_type))
-
-        for svg, path_str, path_type in path_objects:
             file_info_box = FileInfoBox(
-                svg_path=svg,
+                svg_name=f"{content_type}_icon",
                 svg_fill_color=None,
                 svg_stroke_color="#ffffff",
-                text=extract_filename_with_ext(path_str),
+                text=extract_filename_with_ext(path),
             )
             file_info_box.on_clicked(
-                lambda path=path_str: self._reveal_path_in_file_explorer(path)
+                lambda p=path: self._reveal_path_in_file_explorer(p)
             )
-            ToolTipBinder(
-                file_info_box,
-                ToolTipConfig(
-                    text=f"<b>{'Thư mục' if path_type=='folder' else 'Tệp'}</b>: {path_str}",
-                    show_delay_ms=100,
-                    constrain_to=CollisionConstraint.SCREEN,
-                ),
+            file_info_box.on_mouse_in(
+                lambda box=file_info_box, path=path, path_type=path_type: self._on_hover_selected_file_box(
+                    box, path, path_type
+                )
             )
-            self.selected_docs_flow.addWidget(file_info_box)
+            self._selected_docs_flow.addWidget(file_info_box)
 
-        if self._selected_docs_preview:
-            self._selected_docs_layout.removeWidget(self._selected_docs_preview)
-            self._selected_docs_preview.setParent(None)
-            self._selected_docs_preview.deleteLater()
-            self._selected_docs_preview = None
-
-        self._selected_docs_preview = preview
-        self._selected_docs_layout.addWidget(self._selected_docs_preview)
+        self._selected_docs_frame_inner_scroll.adjustSize()
 
     def _create_active_remote_info(self) -> QVBoxLayout:
         layout = QVBoxLayout()
@@ -323,18 +418,6 @@ class MainWindow(QWidget):
 
         # Style cho bar
         active_remote_bar.setObjectName("ActiveRemoteBar")
-        active_remote_bar.setStyleSheet(
-            f"""
-            #ActiveRemoteBar {{
-                background-color: {ThemeColors.GRAY_BACKGROUND};
-                border: 1px solid {ThemeColors.GRAY_BORDER};
-                border-radius: 8px;
-            }}
-            #ActiveRemoteBar:hover {{
-                background-color: #3d3d3d;
-            }}
-        """
-        )
 
         # Connect click event
         active_remote_bar.mousePressEvent = lambda e: self._open_active_remote_screen()
@@ -376,24 +459,9 @@ class MainWindow(QWidget):
 
         input_layout = QHBoxLayout()
         self._gdrive_path_input = QLineEdit()
+        self._gdrive_path_input.setObjectName("GDrivePathInput")
         self._gdrive_path_input.returnPressed.connect(
             self._on_gdrive_path_input_enter_pressed
-        )
-        self._gdrive_path_input.setStyleSheet(
-            f"""
-            QLineEdit {{
-                border: 1px solid {ThemeColors.GRAY_BORDER};
-                border-bottom: 2px solid {ThemeColors.STRONG_GRAY};
-                border-radius: 8px;
-                padding: 4px 8px 6px;
-            }}
-            QLineEdit:hover {{
-                border-color: {ThemeColors.MAIN};
-            }}
-            QLineEdit:focus {{
-                border-color: {ThemeColors.MAIN};
-            }}
-            """
         )
 
         if default_base_dir:
@@ -447,20 +515,6 @@ class MainWindow(QWidget):
             default_text="Đồng bộ ngay để xem chi tiết...",
         )
         self._log_output.set_contents_margins(10, 6, 10, 6)
-        self._log_output.setStyleSheet(
-            f"""
-            #ScrollableTextScroll {{
-                background-color: {ThemeColors.GRAY_BACKGROUND};
-                border: 1px solid {ThemeColors.GRAY_BORDER};
-                border-radius: 12px;
-            }}
-            #ScrollableTextLabel {{
-                background-color: {ThemeColors.GRAY_BACKGROUND};
-                border-radius: 12px;
-                color: white;
-            }}
-            """
-        )
         self._log_output.set_font_size(12)
         self.copy_log_btn_overlay = CustomOverlay(
             parent_widget=self._log_output,
@@ -469,15 +523,6 @@ class MainWindow(QWidget):
         )
         self._copy_log_btn = CustomButton("Sao chép", fixed_height=28, font_size=11)
         self._copy_log_btn.setObjectName("CopyLogButton")
-        self._copy_log_btn.setStyleSheet(
-            f"""
-            #CopyLogButton {{
-                background-color: transparent;
-                border: none;
-                padding: 2px 6px 4px;
-            }}
-        """
-        )
         self._copy_log_btn.on_clicked(self._on_copy_log)
         self.copy_log_btn_overlay.content_layout.addWidget(self._copy_log_btn)
         log_layout.addWidget(log_label)
@@ -498,9 +543,10 @@ class MainWindow(QWidget):
                 self._sync_btn.stop_loading()
         else:
             self._sync_btn = CustomButton("Đồng bộ ngay", is_bold=True, fixed_height=48)
+            self._sync_btn.setObjectName("SyncButton")
             self._sync_btn.setIcon(
-                svg_to_pixmap(
-                    get_svg_file_path("double_check_icon")[0],
+                get_svg_as_icon(
+                    "double_check_icon",
                     30,
                     None,
                     "#000000",
@@ -509,30 +555,15 @@ class MainWindow(QWidget):
                 )
             )
             self._sync_btn.setIconSize(QSize(30, 30))
-            self._sync_btn.setStyleSheet(
-                f"""
-                CustomButton {{
-                    background-color: {ThemeColors.MAIN};
-                    color: black;
-                }}
-                """
-            )
             self._sync_btn.on_clicked(self._on_sync_start)
 
             quit_btn = CustomButton("Thoát", is_bold=True, fixed_height=48)
-            quit_btn.setStyleSheet(
-                f"""
-                CustomButton {{
-                    background-color: {ThemeColors.STRONG_GRAY};
-                    color: black;
-                }}
-                """
-            )
+            quit_btn.setObjectName("QuitAppButton")
             quit_btn.on_clicked(self._close_app)
 
             btn_layout = QHBoxLayout()
             btn_layout.setSpacing(8)
-            btn_layout.setContentsMargins(0, 8, 0, 0)
+            btn_layout.setContentsMargins(12, 8, 12, 8)
             btn_layout.addWidget(quit_btn, 4)
             btn_layout.addWidget(self._sync_btn, 6)
             self._root_layout.addLayout(btn_layout)
@@ -596,8 +627,8 @@ class MainWindow(QWidget):
                 self,
                 title="Yêu cầu đăng nhập",
                 text=error_msg,
-                icon_pixmap=svg_to_pixmap(
-                    get_svg_file_path("info_icon")[0],
+                icon_pixmap=get_svg_as_icon(
+                    "info_icon",
                     35,
                     None,
                     ThemeColors.INFO,
@@ -611,8 +642,8 @@ class MainWindow(QWidget):
                 self,
                 title="Lỗi",
                 text=error_msg,
-                icon_pixmap=svg_to_pixmap(
-                    get_svg_file_path("warn_icon")[0],
+                icon_pixmap=get_svg_as_icon(
+                    "warn_icon",
                     35,
                     None,
                     ThemeColors.WARNING,
@@ -694,7 +725,7 @@ class MainWindow(QWidget):
             self._settings_dialog = SettingsScreen(self)
         self._settings_dialog.exec()
 
-    def _render_user_data(self, saved_user_data: ConfigSchema) -> None:
+    def _render_user_data(self, saved_user_data: UserDataConfigSchema) -> None:
         """Hiển thị dữ liệu sync đã lưu."""
         active_remote = saved_user_data.get("active_remote")
         if saved_user_data.get("remotes") and active_remote:
@@ -709,31 +740,25 @@ class MainWindow(QWidget):
             settings_btn = CustomButton()
             settings_btn.on_clicked(self._open_settings_screen)
             settings_btn.setIcon(
-                svg_to_pixmap(
-                    get_svg_file_path("settings_icon")[0],
+                get_svg_as_icon(
+                    "settings_icon",
                     24,
                     None,
                     "#ffffff",
                 )
             )
             settings_btn.setIconSize(QSize(24, 24))
-            settings_btn.setStyleSheet(
-                f"""
-                CustomButton {{
-                    background-color: {ThemeColors.GRAY_BACKGROUND};
-                    color: black;
-                }}
-                """
-            )
+            settings_btn.setObjectName("SettingsButton")
             settings_btn.setFixedHeight(36)
             settings_btn.setFixedWidth(36)
             settings_btn.setCursor(Qt.CursorShape.PointingHandCursor)
             self._right_actions_layout.addWidget(settings_btn)
         else:
             login_btn = CustomButton("Đăng nhập Google Drive")
+            login_btn.setObjectName("LoginGDriveButton")
             login_btn.setIcon(
-                svg_to_pixmap(
-                    get_svg_file_path("login_icon")[0],
+                get_svg_as_icon(
+                    "login_icon",
                     26,
                     None,
                     "#000000",
@@ -741,15 +766,6 @@ class MainWindow(QWidget):
                 )
             )
             login_btn.setIconSize(QSize(26, 26))
-            login_btn.setStyleSheet(
-                f"""
-                CustomButton {{
-                    padding: 2px 12px 4px;
-                    background-color: {ThemeColors.MAIN};
-                    color: black;
-                }}
-                """
-            )
             login_btn.setCursor(Qt.CursorShape.PointingHandCursor)
             login_btn.on_clicked(self._do_login_gdrive)
             login_btn_font = login_btn.font()
@@ -761,6 +777,8 @@ class MainWindow(QWidget):
 
     def _load_saved_user_data(self) -> None:
         """Tải dữ liệu người dùng đã lưu (nếu có)."""
+        if not self._data_manager.check_if_data_inited():
+            self._data_manager.init_data_config_file()
         self._render_user_data(self._data_manager.get_entire_config())
 
 

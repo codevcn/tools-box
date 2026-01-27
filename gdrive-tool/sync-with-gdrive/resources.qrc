@@ -1,0 +1,32 @@
+<!DOCTYPE RCC><RCC version="1.0">
+  <qresource prefix="icons">
+    <file alias="app_logo.svg">app/src/assets/images/svg/app_logo.svg</file>
+    <file alias="archive_icon.svg">app/src/assets/images/svg/archive_icon.svg</file>
+    <file alias="audio_icon.svg">app/src/assets/images/svg/audio_icon.svg</file>
+    <file alias="browse_file_icon.svg">app/src/assets/images/svg/browse_file_icon.svg</file>
+    <file alias="check_icon.svg">app/src/assets/images/svg/check_icon.svg</file>
+    <file alias="close_icon.svg">app/src/assets/images/svg/close_icon.svg</file>
+    <file alias="cloud_check_icon.svg">app/src/assets/images/svg/cloud_check_icon.svg</file>
+    <file alias="code_icon.svg">app/src/assets/images/svg/code_icon.svg</file>
+    <file alias="double_check_icon.svg">app/src/assets/images/svg/double_check_icon.svg</file>
+    <file alias="error_icon.svg">app/src/assets/images/svg/error_icon.svg</file>
+    <file alias="excel_icon.svg">app/src/assets/images/svg/excel_icon.svg</file>
+    <file alias="expand_icon.svg">app/src/assets/images/svg/expand_icon.svg</file>
+    <file alias="file_icon.svg">app/src/assets/images/svg/file_icon.svg</file>
+    <file alias="folder_icon.svg">app/src/assets/images/svg/folder_icon.svg</file>
+    <file alias="gdrive_logo_icon.svg">app/src/assets/images/svg/gdrive_logo_icon.svg</file>
+    <file alias="image_icon.svg">app/src/assets/images/svg/image_icon.svg</file>
+    <file alias="info_icon.svg">app/src/assets/images/svg/info_icon.svg</file>
+    <file alias="json_icon.svg">app/src/assets/images/svg/json_icon.svg</file>
+    <file alias="keyboard_icon.svg">app/src/assets/images/svg/keyboard_icon.svg</file>
+    <file alias="login_icon.svg">app/src/assets/images/svg/login_icon.svg</file>
+    <file alias="markdown_icon.svg">app/src/assets/images/svg/markdown_icon.svg</file>
+    <file alias="pdf_icon.svg">app/src/assets/images/svg/pdf_icon.svg</file>
+    <file alias="ppt_icon.svg">app/src/assets/images/svg/ppt_icon.svg</file>
+    <file alias="settings_icon.svg">app/src/assets/images/svg/settings_icon.svg</file>
+    <file alias="txt_icon.svg">app/src/assets/images/svg/txt_icon.svg</file>
+    <file alias="video_icon.svg">app/src/assets/images/svg/video_icon.svg</file>
+    <file alias="warn_icon.svg">app/src/assets/images/svg/warn_icon.svg</file>
+    <file alias="word_icon.svg">app/src/assets/images/svg/word_icon.svg</file>
+  </qresource>
+</RCC>

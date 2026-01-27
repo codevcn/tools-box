@@ -3,6 +3,8 @@ Tree view of: D:\D-Documents\TOOLs\gdrive-tool\sync-with-gdrive
 ├── .github
 │   └── copilot-instructions.md
 ├── .gitignore
+├── AGENTS.md
+├── CHANGELOG.md
 ├── README.md
 ├── add_sync_with_gdrive.reg
 ├── app
@@ -16,6 +18,7 @@ Tree view of: D:\D-Documents\TOOLs\gdrive-tool\sync-with-gdrive
 │       │   ├── app.ico
 │       │   └── images
 │       │       └── svg
+│       │           ├── app_logo.svg
 │       │           ├── archive_icon.svg
 │       │           ├── audio_icon.svg
 │       │           ├── browse_file_icon.svg
@@ -54,7 +57,8 @@ Tree view of: D:\D-Documents\TOOLs\gdrive-tool\sync-with-gdrive
 │       │   ├── scrollable_text.py
 │       │   ├── select_box.py
 │       │   ├── selected_file_box.py
-│       │   └── tooltip.py
+│       │   ├── tooltip.py
+│       │   └── window_title_bar.py
 │       ├── configs
 │       │   └── configs.py
 │       ├── data
@@ -62,7 +66,9 @@ Tree view of: D:\D-Documents\TOOLs\gdrive-tool\sync-with-gdrive
 │       │   └── sync-with-gdrive.json
 │       ├── login_gdrive_screen.py
 │       ├── mixins
+│       │   ├── app_window.py
 │       │   └── keyboard_shortcuts.py
+│       ├── resources_rc.py
 │       ├── settings_screen.py
 │       ├── sync_progress.py
 │       ├── testing
@@ -75,10 +81,24 @@ Tree view of: D:\D-Documents\TOOLs\gdrive-tool\sync-with-gdrive
 │           └── sync_worker.py
 ├── app_logo.ico
 ├── app_logo.svg
+├── blueprints
+│   ├── app_version_release.md
+│   ├── build_app_production.md
+│   └── checklist_build_production.md
+├── build
+│   └── version_info.txt
 ├── dev.cmd
+├── gen-asset.cmd
 ├── note.md
 ├── print_project_tree.py
 ├── project_tree.txt
+├── requirements.lock.txt
+├── requirements.txt
+├── resources.qrc
 ├── run_app.py
 ├── run_app_multi.py
+├── scripts
+│   ├── gen_version_info.py
+│   ├── git_commit.py
+│   └── release_changelog.py
 └── test.cmd

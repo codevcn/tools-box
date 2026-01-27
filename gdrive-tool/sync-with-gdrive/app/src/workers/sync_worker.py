@@ -9,7 +9,7 @@ from enum import Enum
 from pathlib import Path
 
 from PySide6.QtCore import QObject, Signal, QProcess
-from data.data_manager import DataManager
+from data.data_manager import UserDataManager
 
 LOG_SPEED_INTERVAL: str = "0.5s"  # Tốc độ lấy log
 
@@ -58,7 +58,7 @@ class RcloneSyncWorker(QObject):
         parent: QObject | None = None,
     ) -> None:
         super().__init__(parent)
-        self._data_manager: DataManager = DataManager()
+        self._data_manager: UserDataManager = UserDataManager()
 
         active_remote = self._data_manager.get_active_remote()
         if not active_remote:
