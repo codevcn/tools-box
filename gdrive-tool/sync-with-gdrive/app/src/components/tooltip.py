@@ -1,245 +1,185 @@
-from __future__ import annotations
-
 from dataclasses import dataclass
-from enum import Enum
-
-from PySide6.QtCore import Qt, QObject, QEvent, QPoint, QTimer
-from PySide6.QtGui import QCursor, QGuiApplication
-from PySide6.QtWidgets import QWidget, QFrame, QHBoxLayout, QVBoxLayout
-
-# Giả định các import này từ project của bạn vẫn giữ nguyên
-from components.label import CustomLabel
+from enum import Enum, auto
+from PySide6.QtWidgets import (
+    QApplication,
+    QWidget,
+    QFrame,
+    QVBoxLayout,
+    QGraphicsDropShadowEffect,
+)
+from PySide6.QtCore import Qt, QObject, QEvent, QTimer, QPoint, QRect
+from PySide6.QtGui import QColor, QCursor
 from configs.configs import ThemeColors
+from components.label import CustomLabel
 
 
-class CustomToolTip(QFrame):
-    """Tooltip widget custom (chỉ text)."""
-
-    def __init__(self, parent: QWidget | None = None):
-        super().__init__(
-            parent,
-            Qt.WindowType.ToolTip
-            | Qt.WindowType.FramelessWindowHint
-            | Qt.WindowType.BypassWindowManagerHint,
-        )
-        self.setObjectName("MyCustomToolTip")
-
-        # 1. Giữ nền cửa sổ cha trong suốt
-        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
-        self.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating, True)
-
-        # 2. Tạo Layout chính cho cửa sổ cha
-        self._main_layout = QVBoxLayout(self)
-        self._main_layout.setContentsMargins(0, 0, 0, 0)
-
-        # 3. Tạo Container
-        self._container = QFrame()
-        self._container.setObjectName("TooltipContainer")
-
-        self._container.setStyleSheet(
-            f"""
-            #TooltipContainer {{
-                background-color: {ThemeColors.GRAY_BACKGROUND};
-                border: 1px solid {ThemeColors.GRAY_BORDER};
-                border-radius: 8px;
-            }}
-            """
-        )
-
-        self._main_layout.addWidget(self._container)
-
-        # 4. Setup nội dung bên trong Container
-        self._root = QHBoxLayout(self._container)
-        self._root.setContentsMargins(10, 4, 10, 8)
-        self._root.setSpacing(0)
-        self._root.setSizeConstraint(QHBoxLayout.SizeConstraint.SetFixedSize)
-
-        self._text = CustomLabel(is_word_wrap=True)
-        self._text.setStyleSheet("color: white; border: none;")
-        self._root.addWidget(self._text)
-
-    def set_content(self, text: str, max_width: int = 320, font_size: int = 12) -> None:
-        self._text.setText(text)
-        self._text.setMaximumWidth(max_width)
-        self._text.set_font_size(font_size)
-        self.adjustSize()
-
-    def show_at_cursor(
-        self,
-        offset: QPoint = QPoint(12, 16),
-        margin: int = 8,
-        constrain_to: str = "screen",
-        owner_window: QWidget | None = None,
-    ) -> None:
-        self._text.adjustSize()
-        self.adjustSize()
-
-        cursor_pos = QCursor.pos()
-        pos = cursor_pos + offset
-
-        w = self.width()
-        h = self.height()
-
-        if constrain_to == "window" and owner_window is not None:
-            rect = owner_window.frameGeometry()
-            left = rect.left() + margin
-            top = rect.top() + margin
-            right = rect.right() - margin
-            bottom = rect.bottom() - margin
-        else:
-            screen = (
-                QGuiApplication.screenAt(cursor_pos) or QGuiApplication.primaryScreen()
-            )
-            geo = screen.availableGeometry()
-            left = geo.left() + margin
-            top = geo.top() + margin
-            right = geo.right() - margin
-            bottom = geo.bottom() - margin
-
-        max_w = max(1, right - left)
-        max_h = max(1, bottom - top)
-        w = min(w, max_w)
-        h = min(h, max_h)
-
-        x = pos.x()
-        y = pos.y()
-
-        if x + w > right:
-            x = right - w
-        if x < left:
-            x = left
-
-        if y + h > bottom:
-            y = cursor_pos.y() - h - max(6, offset.y() // 2)
-        if y < top:
-            y = top
-
-        self.resize(w, h)
-        self.move(x, y)
-        self.show()
-        self.raise_()
+# --- 1. Enum Constraints ---
+class CollisionConstraint(Enum):
+    SCREEN = auto()
+    WINDOW = auto()
 
 
-class CollisionConstraint(str, Enum):
-    SCREEN = "screen"
-    WINDOW = "window"
-
-
+# --- 2. Configuration ---
 @dataclass
 class ToolTipConfig:
     text: str
     font_size: int = 10
     max_width: int = 320
-    show_delay_ms: int = 200  # Set mặc định 150ms như yêu cầu
-    constrain_to: CollisionConstraint = CollisionConstraint.SCREEN
-    follow_mouse: bool = False  # Flag mới: False = đứng im, True = chạy theo chuột
+    show_delay_ms: int = 200
+    constrain_to: CollisionConstraint = CollisionConstraint.WINDOW
+    follow_mouse: bool = False
+    background_color: str = ThemeColors.GRAY_BACKGROUND
+    text_color: str = "#ffffff"
 
 
+# --- 3. The Visual Tooltip Widget ---
+class CustomToolTip(QFrame):
+    def __init__(self, config: ToolTipConfig, parent=None):
+        super().__init__(parent)
+        self.setObjectName("CustomToolTipRoot")
+
+        self.config = config
+
+        # Cấu hình Window Flags để nó nổi lên trên và không có khung
+        self.setWindowFlags(
+            Qt.WindowType.ToolTip
+            | Qt.WindowType.FramelessWindowHint
+            | Qt.WindowType.WindowStaysOnTopHint
+            | Qt.WindowType.NoDropShadowWindowHint  # Tắt bóng mặc định của OS để dùng bóng custom
+        )# BẮT BUỘC: Cho phép vẽ background khi dùng ID Selector trong Stylesheet
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        self.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating)
+
+        # Layout & Content
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(10, 8, 10, 8)
+
+        self.label = CustomLabel(config.text)
+        self.label.setObjectName("ToolTipLabel")
+        self.label.setWordWrap(True)
+        self.label.setMaximumWidth(config.max_width)
+
+        # Styling
+        self.setStyleSheet(
+            f"""
+            #ToolTipLabel {{
+                color: {config.text_color};
+                font-size: {config.font_size}pt;
+            }}
+            #CustomToolTipRoot {{
+                background-color: {config.background_color};
+                border: 1px solid white;
+                border-radius: 8px;
+                padding: 4px;
+            }}
+        """
+        )
+        layout.addWidget(self.label)
+
+        # Drop Shadow Effect (Hiệu ứng đổ bóng)
+        shadow = QGraphicsDropShadowEffect(self)
+        shadow.setBlurRadius(15)
+        shadow.setColor(QColor(0, 0, 0, 60))
+        shadow.setOffset(0, 4)
+        self.setGraphicsEffect(shadow)
+
+
+# --- 4. The Logic Binder ---
 class ToolTipBinder(QObject):
-    """Gắn tooltip text vào widget."""
+    def __init__(self, widget: QWidget, config: ToolTipConfig):
+        super().__init__(widget)
+        self.widget = widget
+        self.config = config
+        self.tooltip_window: CustomToolTip | None = None
 
-    def __init__(self, target: QWidget, config: ToolTipConfig):
-        super().__init__(target)
-        self._target = target
-        self._cfg = config
-        self._tip = CustomToolTip(parent=None)
+        # Timer cho delay hiển thị
+        self.timer = QTimer(self)
+        self.timer.setSingleShot(True)
+        self.timer.timeout.connect(self.show_tooltip)
 
-        self._timer = QTimer(self)
-        self._timer.setSingleShot(True)
-        self._timer.timeout.connect(self._show_now)
-
-        # Biến lưu vị trí chuột để check khoảng cách di chuyển
-        self._last_mouse_pos = QPoint()
-        # Ngưỡng di chuyển (pixel). Di chuyển nhỏ hơn số này coi như đứng yên.
-        self._move_threshold = 5
-
-        target.setMouseTracking(True)
-        target.installEventFilter(self)
-
-        self._is_inside = False
-
-    def set_config(self, config: ToolTipConfig) -> None:
-        self._cfg = config
-        if self._tip.isVisible():
-            self._apply_content()
-            # Nếu đang hiện thì update vị trí nếu cần (tùy logic app, ở đây giữ nguyên)
-            if self._cfg.follow_mouse:
-                self._reposition()
+        # Cài đặt Event Filter
+        self.widget.installEventFilter(self)
 
     def eventFilter(self, watched: QObject, event: QEvent) -> bool:
-        if watched is not self._target:
-            return super().eventFilter(watched, event)
+        if watched == self.widget:
+            if event.type() == QEvent.Type.Enter:
+                self.timer.start(self.config.show_delay_ms)
 
-        et = event.type()
+            elif event.type() == QEvent.Type.Leave:
+                self.timer.stop()
+                self.hide_tooltip()
 
-        if et == QEvent.Type.Enter:
-            self._is_inside = True
-            self._last_mouse_pos = QCursor.pos()  # Lưu vị trí lúc bắt đầu vào
+            elif event.type() == QEvent.Type.MouseButtonPress:
+                self.timer.stop()
+                self.hide_tooltip()
 
-            # Bắt đầu đếm ngược thời gian show
-            if self._cfg.show_delay_ms > 0:
-                self._timer.start(self._cfg.show_delay_ms)
-            else:
-                self._show_now()
-            return False
-
-        if et == QEvent.Type.MouseMove:
-            if not self._is_inside:
-                return False
-
-            curr_pos = QCursor.pos()
-
-            # --- TRƯỜNG HỢP 1: Tooltip chưa hiện (đang chờ timer) ---
-            if not self._tip.isVisible():
-                # Tính khoảng cách đã di chuyển so với lần cuối check
-                dist = (curr_pos - self._last_mouse_pos).manhattanLength()
-
-                # Nếu di chuyển quá ngưỡng (tức là người dùng đang rê chuột liên tục)
-                # -> Reset timer lại từ đầu (ngừng show tooltip tạm thời)
-                if dist > self._move_threshold:
-                    if self._cfg.show_delay_ms > 0:
-                        self._timer.stop()
-                        self._timer.start(self._cfg.show_delay_ms)
-                    self._last_mouse_pos = curr_pos  # Cập nhật mốc vị trí mới
-
-            # --- TRƯỜNG HỢP 2: Tooltip đã hiện ---
-            else:
-                # Chỉ di chuyển tooltip nếu flag follow_mouse được bật
-                if self._cfg.follow_mouse:
-                    self._reposition()
-
-            return False
-
-        if et in (QEvent.Type.Leave, QEvent.Type.Hide, QEvent.Type.FocusOut):
-            self._is_inside = False
-            self._timer.stop()
-            self._tip.hide()
-            return False
+            elif event.type() == QEvent.Type.MouseMove:
+                if (
+                    self.config.follow_mouse
+                    and self.tooltip_window
+                    and self.tooltip_window.isVisible()
+                ):
+                    self.update_position(QCursor.pos())
 
         return super().eventFilter(watched, event)
 
-    def _apply_content(self) -> None:
-        cfg = self._cfg
-        self._tip.set_content(
-            cfg.text, max_width=cfg.max_width, font_size=cfg.font_size
-        )
+    def show_tooltip(self):
+        if not self.tooltip_window:
+            self.tooltip_window = CustomToolTip(self.config)
 
-    def _show_now(self) -> None:
-        if not self._is_inside:
+        # Cập nhật nội dung (nếu config thay đổi động)
+        self.tooltip_window.label.setText(self.config.text)
+        self.tooltip_window.adjustSize()
+
+        self.update_position(QCursor.pos())
+        self.tooltip_window.show()
+
+    def hide_tooltip(self):
+        if self.tooltip_window:
+            self.tooltip_window.hide()
+            self.tooltip_window.deleteLater()
+            self.tooltip_window = None
+
+    def update_position(self, cursor_pos: QPoint):
+        if not self.tooltip_window:
             return
-        self._apply_content()
-        self._reposition()
 
-    def _reposition(self) -> None:
-        cfg = self._cfg
-        owner = (
-            self._target.window()
-            if cfg.constrain_to == CollisionConstraint.WINDOW
-            else None
-        )
-        self._tip.show_at_cursor(
-            offset=QPoint(12, 16),
-            margin=8,
-            constrain_to=str(cfg.constrain_to),
-            owner_window=owner,
-        )
+        # Khoảng cách từ chuột đến tooltip
+        offset_y = 20
+        pos = cursor_pos + QPoint(0, offset_y)
+
+        tip_w = self.tooltip_window.width()
+        tip_h = self.tooltip_window.height()
+
+        # Xác định vùng giới hạn (Screen hoặc Window cha)
+        boundary: QRect
+        if self.config.constrain_to == CollisionConstraint.WINDOW:
+            window = self.widget.window()
+            boundary = window.geometry()
+        else:
+            # Mặc định lấy màn hình chứa con chuột
+            screen = QApplication.screenAt(cursor_pos)
+            if not screen:
+                screen = QApplication.primaryScreen()
+            boundary = screen.availableGeometry()
+
+        # Logic chống tràn (Collision Logic)
+
+        # 1. Tràn bên phải
+        if pos.x() + tip_w > boundary.right():
+            pos.setX(boundary.right() - tip_w)
+
+        # 2. Tràn bên dưới -> Đẩy lên trên chuột
+        if pos.y() + tip_h > boundary.bottom():
+            pos.setY(cursor_pos.y() - tip_h - 5)
+
+        # 3. Tràn bên trái (ít gặp nhưng vẫn check)
+        if pos.x() < boundary.left():
+            pos.setX(boundary.left())
+
+        # 4. Tràn bên trên
+        if pos.y() < boundary.top():
+            pos.setY(boundary.top())
+
+        self.tooltip_window.move(pos)

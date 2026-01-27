@@ -47,10 +47,10 @@ from settings_screen import SettingsScreen
 import os
 import subprocess
 from components.window_title_bar import CustomWindowTitleBar
-from mixins.app_window import AppWindowMixin
+from mixins.main_window import MainWindowMixin
 
 
-class MainWindow(AppWindowMixin):
+class MainWindow(MainWindowMixin):
     """Main window cho ứng dụng sync folder."""
 
     def __init__(self, local_paths: list[str]):
@@ -207,7 +207,10 @@ class MainWindow(AppWindowMixin):
         self._root_layout = root_layout
 
         # Custom title bar
-        self._title_bar = CustomWindowTitleBar(self)
+        self._title_bar = CustomWindowTitleBar(
+            root_shell=self._root_shell, close_app_handler=self._close_app, parent=self
+        )
+        self.set_animate_close_window(self._title_bar._animate_close_window)
         root_layout.addWidget(self._title_bar)
 
         # Top menu section
@@ -243,7 +246,7 @@ class MainWindow(AppWindowMixin):
 
         # Main section layout
         main_layout_section = QVBoxLayout()
-        main_layout_section.setContentsMargins(12, 8, 12, 8)
+        main_layout_section.setContentsMargins(12, 0, 12, 8)
         main_layout_section.addWidget(top_menu_frame)
         main_layout_section.addWidget(divider)
         main_layout_section.addLayout(active_remote_info_layout)
@@ -331,19 +334,6 @@ class MainWindow(AppWindowMixin):
         self._selected_docs_preview.addWidget(selected_docs_label)
         self._selected_docs_preview.addWidget(selected_docs_scroll)
 
-    def _on_hover_selected_file_box(
-        self, file_info_box: FileInfoBox, path_str: str, path_type: PathType
-    ) -> None:
-        """Xử lý khi hover vào SelectedFileBox."""
-        ToolTipBinder(
-            file_info_box,
-            ToolTipConfig(
-                text=f"<b>{'Thư mục' if path_type=='folder' else 'Tệp'}</b>: {path_str}",
-                show_delay_ms=100,
-                constrain_to=CollisionConstraint.SCREEN,
-            ),
-        )
-
     def _update_selected_docs_preview(self) -> None:
         """Cập nhật lại preview các tệp/thư mục đã chọn."""
         # Xoá hết item cũ
@@ -365,10 +355,13 @@ class MainWindow(AppWindowMixin):
             file_info_box.on_clicked(
                 lambda p=path: self._reveal_path_in_file_explorer(p)
             )
-            file_info_box.on_mouse_in(
-                lambda box=file_info_box, path=path, path_type=path_type: self._on_hover_selected_file_box(
-                    box, path, path_type
-                )
+            ToolTipBinder(
+                file_info_box,
+                ToolTipConfig(
+                    text=f"<b>{'Thư mục' if path_type=='folder' else 'Tệp'}</b>: {path}",
+                    show_delay_ms=100,
+                    constrain_to=CollisionConstraint.WINDOW,
+                ),
             )
             self._selected_docs_flow.addWidget(file_info_box)
 

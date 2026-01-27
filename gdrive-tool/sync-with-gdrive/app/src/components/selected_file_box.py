@@ -9,6 +9,8 @@ class FileInfoBox(QFrame):
     _is_mouse_in = Signal()  # Signal khi chuột vào
     _is_mouse_out = Signal()  # Signal khi chuột ra
 
+    mouse_state_for_outer: str = ""
+
     def __init__(
         self,
         text: str,
