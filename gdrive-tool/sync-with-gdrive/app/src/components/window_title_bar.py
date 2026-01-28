@@ -3,11 +3,11 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QFrame,
 )
-from mixins.window import GeneralWindowMixin
-from configs.configs import ThemeColors
-from components.label import CustomLabel
-from components.button import CustomButton
-from utils.helpers import get_svg_as_icon
+from ..mixins.window import GeneralWindowMixin
+from ..configs.configs import ThemeColors
+from ..components.label import CustomLabel
+from ..components.button import CustomButton
+from ..utils.helpers import get_svg_as_icon
 from PySide6.QtCore import (
     QPropertyAnimation,
     QEasingCurve,

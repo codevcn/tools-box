@@ -8,7 +8,7 @@ from PySide6.QtCore import (
     Qt,
 )
 import sys
-from mixins.window import GeneralWindowMixin
+from ..mixins.window import GeneralWindowMixin
 from typing import Callable
 
 

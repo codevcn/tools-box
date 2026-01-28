@@ -1,6 +1,6 @@
 from PySide6.QtCore import QObject, Signal, QProcess
 from PySide6.QtWidgets import QWidget
-from utils.helpers import rclone_config_path
+from ..utils.helpers import rclone_config_path
 
 
 class RcloneDriveSetup(QObject):

@@ -1,6 +1,6 @@
 from PySide6.QtWidgets import QFrame, QLabel, QHBoxLayout, QSizePolicy
 from PySide6.QtCore import Qt, Signal
-from utils.helpers import get_svg_as_icon
+from ..utils.helpers import get_svg_as_icon
 from typing import Callable
 
 

@@ -9,8 +9,8 @@ from enum import Enum
 from pathlib import Path
 
 from PySide6.QtCore import QObject, Signal, QProcess
-from utils.helpers import rclone_executable_path
-from data.data_manager import UserDataManager
+from ..utils.helpers import rclone_executable_path
+from ..data.data_manager import UserDataManager
 
 LOG_SPEED_INTERVAL: str = "0.5s"  # Tốc độ lấy log
 

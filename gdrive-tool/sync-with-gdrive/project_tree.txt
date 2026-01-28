@@ -6,14 +6,16 @@ Tree view of: D:\D-Documents\TOOLs\gdrive-tool\sync-with-gdrive
 ├── AGENTS.md
 ├── CHANGELOG.md
 ├── README.md
+├── SynRive.spec
 ├── add_sync_with_gdrive.reg
 ├── app
+│   ├── build
+│   │   └── bin
+│   │       └── rclone.exe
 │   ├── dev
-│   │   └── icons.txt
 │   └── src
 │       ├── __init__.py
 │       ├── active_remote_info.py
-│       ├── app.py
 │       ├── assets
 │       │   ├── app.ico
 │       │   └── images
@@ -65,11 +67,13 @@ Tree view of: D:\D-Documents\TOOLs\gdrive-tool\sync-with-gdrive
 │       │   ├── data_manager.py
 │       │   └── sync-with-gdrive.json
 │       ├── login_gdrive_screen.py
+│       ├── main.py
 │       ├── mixins
 │       │   ├── keyboard_shortcuts.py
 │       │   ├── main_window.py
 │       │   └── window.py
 │       ├── resources_rc.py
+│       ├── run_app.py
 │       ├── settings_screen.py
 │       ├── sync_progress.py
 │       ├── testing
@@ -85,10 +89,45 @@ Tree view of: D:\D-Documents\TOOLs\gdrive-tool\sync-with-gdrive
 ├── blueprints
 │   ├── app_version_release.md
 │   ├── build_app_production.md
-│   └── checklist_build_production.md
+│   ├── checklist_build_production.md
+│   └── current_build_progress.md
 ├── build
-│   └── version_info.txt
+│   └── SynRive
+│       ├── Analysis-00.toc
+│       ├── COLLECT-00.toc
+│       ├── EXE-00.toc
+│       ├── PKG-00.toc
+│       ├── PYZ-00.pyz
+│       ├── PYZ-00.toc
+│       ├── SynRive.exe
+│       ├── SynRive.pkg
+│       ├── base_library.zip
+│       ├── localpycs
+│       │   ├── pyimod01_archive.pyc
+│       │   ├── pyimod02_importers.pyc
+│       │   ├── pyimod03_ctypes.pyc
+│       │   ├── pyimod04_pywin32.pyc
+│       │   └── struct.pyc
+│       ├── warn-SynRive.txt
+│       └── xref-SynRive.html
+├── build.cmd
 ├── dev.cmd
+├── dist
+│   └── SynRive
+│       ├── SynRive.exe
+│       └── _internal
+│           ├── VCRUNTIME140.dll
+│           ├── _bz2.pyd
+│           ├── _decimal.pyd
+│           ├── _hashlib.pyd
+│           ├── _lzma.pyd
+│           ├── _socket.pyd
+│           ├── base_library.zip
+│           ├── libcrypto-3.dll
+│           ├── python312.dll
+│           ├── rclone.exe
+│           ├── select.pyd
+│           └── unicodedata.pyd
 ├── gen-asset.cmd
 ├── note.md
 ├── print_project_tree.py
@@ -96,7 +135,6 @@ Tree view of: D:\D-Documents\TOOLs\gdrive-tool\sync-with-gdrive
 ├── requirements.lock.txt
 ├── requirements.txt
 ├── resources.qrc
-├── run_app.py
 ├── run_app_multi.py
 ├── scripts
 │   ├── gen_resources.py

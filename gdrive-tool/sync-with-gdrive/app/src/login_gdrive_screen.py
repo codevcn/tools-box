@@ -7,16 +7,16 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 from PySide6.QtCore import Qt, QSize, Signal
-from components.announcement import CustomAnnounce
-from data.data_manager import UserDataManager
-from utils.helpers import get_svg_as_icon, rclone_executable_path
-from configs.configs import ThemeColors
-from components.label import AutoHeightLabel, CustomLabel
+from .components.announcement import CustomAnnounce
+from .data.data_manager import UserDataManager
+from .utils.helpers import get_svg_as_icon, rclone_executable_path
+from .configs.configs import ThemeColors
+from .components.label import AutoHeightLabel, CustomLabel
 from PySide6.QtGui import QFontMetrics
-from components.button import CustomButton
-from workers.authorize_gdrive_worker import RcloneDriveSetup
+from .components.button import CustomButton
+from .workers.authorize_gdrive_worker import RcloneDriveSetup
 from enum import Enum
-from mixins.keyboard_shortcuts import KeyboardShortcutsDialogMixin
+from .mixins.keyboard_shortcuts import KeyboardShortcutsDialogMixin
 
 
 class LoginResult(Enum):

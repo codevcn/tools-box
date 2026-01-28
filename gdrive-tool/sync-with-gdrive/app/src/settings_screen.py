@@ -9,12 +9,12 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt, QTimer, QSize
 from PySide6.QtGui import QPixmap
-from mixins.keyboard_shortcuts import KeyboardShortcutsDialogMixin
-from components.label import CustomLabel
-from components.button import CustomButton
-from configs.configs import ThemeColors
-from utils.helpers import get_svg_as_icon
-from __init__ import __app_name__, __version__
+from .mixins.keyboard_shortcuts import KeyboardShortcutsDialogMixin
+from .components.label import CustomLabel
+from .components.button import CustomButton
+from .configs.configs import ThemeColors
+from .utils.helpers import get_svg_as_icon
+from .__init__ import __app_name__, __version__
 
 
 class KeyboardShortcutsSection(QFrame):

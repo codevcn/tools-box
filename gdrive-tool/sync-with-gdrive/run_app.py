@@ -1,10 +1,5 @@
 ﻿import sys
-from pathlib import Path
-
-APP_SRC_DIR = Path(__file__).resolve().parent / "app" / "src"
-sys.path.insert(0, str(APP_SRC_DIR))
-
-from main import start_app  # noqa: E402 # type: ignore
+from app.src.main import start_app
 
 
 def run_app():

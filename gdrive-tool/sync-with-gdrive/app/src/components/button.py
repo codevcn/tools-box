@@ -2,10 +2,7 @@ from PySide6.QtWidgets import QPushButton, QHBoxLayout
 from PySide6.QtCore import Qt, QSize
 from PySide6.QtGui import QIcon, QPixmap, QColor, QPainter
 from typing import Callable
-from PySide6.QtSvg import QSvgRenderer
-
-# Import component LoadingDots của bạn
-from components.loading import LoadingDots
+from ..components.loading import LoadingDots
 
 
 class CustomButton(QPushButton):

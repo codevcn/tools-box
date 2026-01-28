@@ -1,4 +1,4 @@
-import resources_rc  # noqa: F401
+from . import resources_rc  # noqa: F401
 import sys
 from pathlib import Path
 from PySide6.QtWidgets import (
@@ -13,41 +13,40 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtGui import QKeySequence, QShortcut, QIcon
 from PySide6.QtCore import QProcess, QSize, Qt, QTimer
-from sync_progress import SyncProgressDialog
-from components.tooltip import CollisionConstraint, ToolTipBinder, ToolTipConfig
-from components.scrollable_text import ScrollableText
-from login_gdrive_screen import LoginGDriveScreen, LoginResult
-from active_remote_info import ActiveRemoteScreen
-from components.announcement import CustomAnnounce
-from components.divider import CustomDivider
-from utils.helpers import (
+from .sync_progress import SyncProgressDialog
+from .components.tooltip import CollisionConstraint, ToolTipBinder, ToolTipConfig
+from .components.scrollable_text import ScrollableText
+from .login_gdrive_screen import LoginGDriveScreen, LoginResult
+from .active_remote_info import ActiveRemoteScreen
+from .components.announcement import CustomAnnounce
+from .components.divider import CustomDivider
+from .utils.helpers import (
     detect_content_type_by_file_extension,
     detect_file_extension,
     detect_path_type,
     extract_filename_with_ext,
     get_svg_as_icon,
 )
-from components.flow_layout import CustomFlowLayout
-from components.selected_file_box import FileInfoBox
-from components.label import CustomLabel
-from workers.sync_worker import (
+from .components.flow_layout import CustomFlowLayout
+from .components.selected_file_box import FileInfoBox
+from .components.label import CustomLabel
+from .workers.sync_worker import (
     RcloneSyncWorker,
     SyncAction,
     SyncOptions,
     SyncProgressData,
     SyncProgressStatus,
 )
-
 # from testing.mock_sync_worker import MockRcloneSyncWorker
-from data.data_manager import UserDataConfigSchema, UserDataManager
-from configs.configs import SyncError, ThemeColors
-from components.button import CustomButton
-from components.overlay import CustomOverlay
-from settings_screen import SettingsScreen
+from .data.data_manager import UserDataConfigSchema, UserDataManager
+from .configs.configs import SyncError, ThemeColors
+from .components.button import CustomButton
+from .components.overlay import CustomOverlay
+from .settings_screen import SettingsScreen
 import os
 import subprocess
-from components.window_title_bar import CustomWindowTitleBar
-from mixins.main_window import MainWindowMixin
+from .components.window_title_bar import CustomWindowTitleBar
+from .mixins.main_window import MainWindowMixin
 
 
 class MainWindow(MainWindowMixin):

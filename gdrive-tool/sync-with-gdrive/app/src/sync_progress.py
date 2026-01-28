@@ -9,13 +9,13 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt, Signal, QSize
 from PySide6.QtGui import QCloseEvent
-from utils.helpers import get_svg_as_icon
-from configs.configs import ThemeColors
-from workers.sync_worker import SyncProgressData
-from components.label import CustomLabel
-from components.button import CustomButton
-from mixins.keyboard_shortcuts import KeyboardShortcutsDialogMixin
-from components.overlay import CenteredOverlay
+from .utils.helpers import get_svg_as_icon
+from .configs.configs import ThemeColors
+from .workers.sync_worker import SyncProgressData
+from .components.label import CustomLabel
+from .components.button import CustomButton
+from .mixins.keyboard_shortcuts import KeyboardShortcutsDialogMixin
+from .components.overlay import CenteredOverlay
 
 
 class SyncProgressItem(QFrame):

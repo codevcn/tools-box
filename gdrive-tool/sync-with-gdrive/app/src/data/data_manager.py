@@ -1,8 +1,8 @@
 from typing import TypedDict
 import json
 from pathlib import Path
-from utils.helpers import get_json_field_value, set_json_field_value
-from utils.helpers import app_data_dir
+from ..utils.helpers import get_json_field_value, set_json_field_value
+from ..utils.helpers import app_data_dir
 
 
 class UserDataConfigSchema(TypedDict):

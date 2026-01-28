@@ -9,8 +9,8 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt, QObject, QEvent, QTimer, QPoint, QRect
 from PySide6.QtGui import QColor, QCursor
-from configs.configs import ThemeColors
-from components.label import CustomLabel
+from ..configs.configs import ThemeColors
+from ..components.label import CustomLabel
 
 
 # --- 1. Enum Constraints ---

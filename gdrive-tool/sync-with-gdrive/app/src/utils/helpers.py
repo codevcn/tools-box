@@ -3,7 +3,7 @@ from pathlib import Path
 import os
 import json
 from typing import Iterable, Optional, Any
-from configs.configs import PathType, CODE_EXTENSIONS, MEDIA_EXTENSIONS
+from ..configs.configs import PathType, CODE_EXTENSIONS, MEDIA_EXTENSIONS
 from PySide6.QtSvg import QSvgRenderer
 from PySide6.QtGui import QPixmap, QPainter
 from PySide6.QtCore import Qt, QRectF, QFile, QIODevice

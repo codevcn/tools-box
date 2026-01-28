@@ -8,12 +8,12 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt, Signal, QSize
 from PySide6.QtGui import QCursor
-from components.button import CustomButton
-from data.data_manager import UserDataManager
-from utils.helpers import get_svg_as_icon
-from configs.configs import ThemeColors
-from components.label import CustomLabel
-from mixins.keyboard_shortcuts import KeyboardShortcutsDialogMixin
+from .components.button import CustomButton
+from .data.data_manager import UserDataManager
+from .utils.helpers import get_svg_as_icon
+from .configs.configs import ThemeColors
+from .components.label import CustomLabel
+from .mixins.keyboard_shortcuts import KeyboardShortcutsDialogMixin
 
 
 class RemoteItem(QWidget):
