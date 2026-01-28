@@ -1,4 +1,4 @@
-Dưới đây là **checklist “đi từ hướng dẫn build → ra bản production chạy ổn”**
+Dưới đây là **checklist “đi từ hướng dẫn build → ra bản production chạy ổn cho app SynRive”**
 
 ---
 

@@ -1,158 +1,115 @@
-Ok, mình **tổng kết lại toàn bộ trạng thái hiện tại của bạn**, theo đúng tiến trình build production mà ta đang đi — để bạn nhìn **1 phát là biết mình đã chốt tới đâu**.
+**Tiến độ hiện tại, tóm gọn – đúng trọng tâm – đối chiếu thẳng với checklist cho app SynRive** 👇
 
 ---
 
-# 🧭 TỔNG KẾT TIẾN TRÌNH BUILD PRODUCTION – SYNRIVE
+## ✅ NHỮNG GÌ BẠN ĐÃ CHỐT / ĐÃ XONG (vắn tắt)
 
-## ✅ BƯỚC 0 — CHỐT ĐỊNH HƯỚNG RELEASE (DONE)
+### 🔒 Kiến trúc & import (ĐÃ CHỐT)
 
-Bạn đã chốt rất rõ:
+* **Entrypoint duy nhất**: `run_app.py` (ở root)
+* **Import nội bộ**: bạn đã **chốt dùng `from . import abc`** trong `app/src`
+* ❌ Không còn:
 
-- ✅ **Kiểu release:** `one-folder`
-- ✅ **Thư mục data user:** `%AppData%/SynRive`
-- ✅ **Điều kiện chạy:** máy **không cài Python** vẫn chạy được
-- ✅ **Đối tượng sử dụng:** user thao tác qua **Windows context menu**
+  * `import abc` trần
+  * `sys.path.insert(...)`
+  * chạy nhầm `app/src/run_app.py`
 
-👉 Đây là nền tảng đúng cho app desktop thực tế.
-
----
-
-## ✅ BƯỚC 1 — MÔI TRƯỜNG BUILD SẠCH (DONE)
-
-- ✅ Tạo `.venv-build` riêng
-- ✅ Cài dependency cần thiết
-- ✅ App chạy OK trong môi trường build
-- ✅ Đã lock dependency bằng `requirements.lock.txt`
-
-👉 Build sau này **lặp lại y hệt**, không lệch phiên bản.
+👉 Dev = Prod = PyInstaller (ổn định)
 
 ---
 
-## ✅ BƯỚC 2 — QUÉT & LOẠI DEV-ONLY (DONE)
+### 📦 PyInstaller & build script (ĐÃ XONG)
 
-### 2.1. Path & CWD
+* Build bằng:
 
-- ✅ **Không dùng `os.getcwd()`** cho asset / tool
-- ✅ Dùng `sys._MEIPASS` khi frozen
-- ✅ Có `project_root_dir()` + `resolve_from_root_dir()`
-
-### 2.2. Tool ngoài – rclone (DONE & CHỐT)
-
-- ✅ **Chọn Option A:** bundle `rclone.exe`
-- ✅ Vị trí nguồn: `app/build/bin/rclone.exe`
-- ✅ Build đưa `rclone.exe` ra **root bundle** (`dist/SynRive/rclone.exe`)
-- ✅ Sync worker **không dùng PATH**, dùng absolute path
-- ✅ Authorize worker **không dùng PATH**, dùng absolute path
-
-👉 App **không phụ thuộc máy user**.
-
----
-
-## ✅ BƯỚC 2.4 — CHỐT RCLONE CONFIG PATH (DONE)
-
-- ✅ **Không dùng config hệ thống** `%AppData%\rclone`
-- ✅ Chốt config riêng cho app:
-
+  ```bat
+  pyinstaller --onedir --name SynRive --noconsole run_app.py
   ```
-  %AppData%/SynRive/rclone/rclone.conf
-  ```
+* Hiểu rõ:
 
-- ✅ Cả **login (authorize)** và **sync** đều prepend:
+  * `dist/SynRive` = output cho user
+  * `build/SynRive` = nội bộ
+* `build.cmd`:
 
-  ```
-  --config <path>
-  ```
-
-- ✅ Không “ăn ké” config của máy dev hay user
-
-👉 App **portable, clean, dễ debug**.
-
----
-
-## ✅ BƯỚC 3 — ASSET & RESOURCE (ĐANG Ở ĐÂY – GẦN XONG)
-
-### 3.1. SVG & Icon UI
-
-- ✅ SVG icon dùng **QRC**
-- ✅ Prefix chuẩn: `:/icons/...`
-- ✅ `helpers.py` gọi icon qua QRC → **CWD-safe**
-
-### 3.2. App icon (.ico)
-
-- ✅ `app.ico` đã được **đưa vào QRC**
-- ✅ Script `gen_resources.py` đã sửa để:
-  - add `.svg`
-  - add `app.ico`
-
-- ✅ `setWindowIcon(QIcon(":/icons/app.ico"))`
-
-👉 Không còn asset nào phụ thuộc path thật.
-
-⏳ **Việc còn lại nhỏ trong bước 3:**
-
-- [ ] Regenerate `resources_rc.py`
-- [ ] Đảm bảo `import resources_rc` được load ít nhất 1 lần (entrypoint)
+  * clean build/dist
+  * build exe
+  * copy sang `D:\D-Testing\SynRive`
+  * dùng **robocopy /MIR**
+  * xử lý file lock (`taskkill SynRive.exe`)
 
 ---
 
-## 🟡 BƯỚC 4 — PYINSTALLER BUILD (CHƯA LÀM, SẮP TỚI)
+### 🎨 Resource / QRC (ĐÃ XONG)
 
-Bạn **chưa build chính thức**, nhưng đã sẵn sàng.
+* `resources_rc.py` nằm trong `app/src`
+* Import bằng:
 
-Dự kiến:
-
-```bat
-pyinstaller --onedir --name SynRive ^
-  --add-binary "app\build\bin\rclone.exe;." ^
-  run_app.py
-```
-
-(Có thể thêm `--icon`, `--noconsole`, `--version-file` sau)
-
----
-
-## 🟡 BƯỚC 5 — CONTEXT MENU PRODUCTION (CHƯA LÀM)
-
-Hiện tại:
-
-- Context menu dev → gọi Python + `.py`
-
-Cần làm:
-
-- `.reg` production gọi:
-
+  ```python
+  from . import resources_rc
   ```
-  "...\SynRive.exe" "%1"
-  ```
-
-- Hỗ trợ file / folder / background / multi-select
-
-👉 **Đây là bước cuối cùng để “ra user thật”**.
+* Icon / SVG / `QIcon(":/...")` chạy **dev & exe**
 
 ---
 
-## 🧩 TÓM TẮT NGẮN GỌN (1 DÒNG / BƯỚC)
+### ▶️ Trạng thái hiện tại
 
-| Bước                     | Trạng thái  |
-| ------------------------ | ----------- |
-| 0. Định hướng release    | ✅ DONE     |
-| 1. Môi trường build      | ✅ DONE     |
-| 2. Dev-only & rclone exe | ✅ DONE     |
-| 2.4 Rclone config path   | ✅ DONE     |
-| 3. Asset & QRC           | 🟡 GẦN XONG |
-| 4. PyInstaller build     | ⏳ CHƯA     |
-| 5. Context menu prod     | ⏳ CHƯA     |
+* ✅ App **mở được**
+* ✅ Exe chạy được
+* ✅ Build giai đoạn đầu **HOÀN THÀNH**
 
 ---
 
-## 👉 Bước hợp lý tiếp theo là gì?
+## 📍 BẠN ĐANG Ở BƯỚC NÀO TRONG CHECKLIST?
 
-**Bạn đang ở cuối BƯỚC 3.**
+Đối chiếu với `checklist_build_production.md`:
 
-👉 Lựa chọn tiếp theo:
+### 🟢 ĐÃ HOÀN THÀNH
 
-1. **Mình chốt nốt Bước 3** (check kỹ không sót asset nào, rồi chuyển build)
-2. **Hoặc nhảy thẳng sang Bước 4**: mình viết **lệnh PyInstaller final** cho bạn
-3. **Hoặc làm Bước 5**: viết **file `.reg` production hoàn chỉnh**
+* **Mục 0** – Chốt đầu ra bản production (one-folder, exe chạy không cần Python)
+* **Mục 1** – Dọn & khóa môi trường build (ở mức đủ dùng)
+* **Mục 2** – Quét & loại bỏ dev-only (path cứng, import sai)
+* **Mục 3** – Asset & resource (QRC, icon, svg)
+* **Mục 6** – PyInstaller build (one-folder, bundle rclone)
+* **Mục 7 (một phần)** – Test chạy được exe
 
-Bạn chỉ cần nói **số bước muốn làm tiếp**.
+👉 Có thể coi **GIAI ĐOẠN FOUNDATION = DONE**
+
+---
+
+### 🟡 BẠN ĐANG ĐỨNG Ở ĐÂY
+
+👉 **GIỮA MỤC 7 → CHUẨN BỊ SANG MỤC 8**
+
+Cụ thể:
+
+* Mục 7: test user thật (còn có thể test thêm máy khác / user khác)
+* Chưa làm:
+
+  * context menu production
+  * versioning / release
+
+---
+
+## ⏭️ BƯỚC KẾ TIẾP GỢI Ý (THEO CHECKLIST)
+
+**Ưu tiên cao nhất cho SynRive:**
+
+➡️ **Làm MỤC 7 (phần còn lại) + MỤC 8**
+
+1. Context menu `.reg` production (file / folder / background / multi-select)
+2. Bump version + cập nhật `CHANGELOG.md`
+3. Đóng gói bản release (zip / artifact)
+
+---
+
+### 🧠 Một câu chốt để bạn nhớ
+
+> **Bạn đã “làm cho app đứng vững”.
+> Bây giờ là giai đoạn “đưa app ra tay người dùng”.**
+
+Nếu bạn muốn, mình dẫn tiếp **đúng checklist** ở:
+
+* **Mục 7: Context menu production**
+* hoặc **Mục 8: Versioning & release**
+
+👉 Bạn chọn **7** hay **8** nhé.

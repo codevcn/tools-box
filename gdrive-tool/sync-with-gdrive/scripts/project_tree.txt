@@ -1,0 +1,104 @@
+Tree view of: D:\D-Documents\TOOLs\gdrive-tool\sync-with-gdrive
+
+├── app
+│   ├── dev
+│   └── src
+│       ├── assets
+│       │   ├── images
+│       │   │   └── svg
+│       │   │       ├── app_logo.svg
+│       │   │       ├── archive_icon.svg
+│       │   │       ├── audio_icon.svg
+│       │   │       ├── browse_file_icon.svg
+│       │   │       ├── check_icon.svg
+│       │   │       ├── close_icon.svg
+│       │   │       ├── cloud_check_icon.svg
+│       │   │       ├── code_icon.svg
+│       │   │       ├── double_check_icon.svg
+│       │   │       ├── error_icon.svg
+│       │   │       ├── excel_icon.svg
+│       │   │       ├── expand_icon.svg
+│       │   │       ├── file_icon.svg
+│       │   │       ├── folder_icon.svg
+│       │   │       ├── gdrive_logo_icon.svg
+│       │   │       ├── image_icon.svg
+│       │   │       ├── info_icon.svg
+│       │   │       ├── json_icon.svg
+│       │   │       ├── keyboard_icon.svg
+│       │   │       ├── login_icon.svg
+│       │   │       ├── markdown_icon.svg
+│       │   │       ├── pdf_icon.svg
+│       │   │       ├── ppt_icon.svg
+│       │   │       ├── settings_icon.svg
+│       │   │       ├── txt_icon.svg
+│       │   │       ├── video_icon.svg
+│       │   │       ├── warn_icon.svg
+│       │   │       └── word_icon.svg
+│       │   └── app.ico
+│       ├── components
+│       │   ├── announcement.py
+│       │   ├── button.py
+│       │   ├── divider.py
+│       │   ├── flow_layout.py
+│       │   ├── label.py
+│       │   ├── loading.py
+│       │   ├── overlay.py
+│       │   ├── scrollable_text.py
+│       │   ├── select_box.py
+│       │   ├── selected_file_box.py
+│       │   ├── tooltip.py
+│       │   └── window_title_bar.py
+│       ├── configs
+│       │   └── configs.py
+│       ├── data
+│       │   ├── data_manager.py
+│       │   └── sync-with-gdrive.json
+│       ├── mixins
+│       │   ├── keyboard_shortcuts.py
+│       │   ├── main_window.py
+│       │   └── window.py
+│       ├── testing
+│       │   ├── log-sample.txt
+│       │   └── mock_sync_worker.py
+│       ├── utils
+│       │   └── helpers.py
+│       ├── workers
+│       │   ├── authorize_gdrive_worker.py
+│       │   └── sync_worker.py
+│       ├── __init__.py
+│       ├── active_remote_info.py
+│       ├── login_gdrive_screen.py
+│       ├── main.py
+│       ├── resources_rc.py
+│       ├── settings_screen.py
+│       └── sync_progress.py
+├── blueprints
+│   ├── app_version_release.md
+│   ├── build_app_production.md
+│   ├── checklist_build_production.md
+│   └── current_build_progress.md
+├── scripts
+│   ├── gen_resources.py
+│   ├── gen_version_info.py
+│   ├── git_commit.py
+│   ├── print_project_tree.py
+│   ├── project_tree.txt
+│   └── release_changelog.py
+├── .gitignore
+├── add_sync_with_gdrive.reg
+├── AGENTS.md
+├── app_logo.ico
+├── app_logo.svg
+├── build.cmd
+├── CHANGELOG.md
+├── dev.cmd
+├── gen-asset.cmd
+├── note.md
+├── README.md
+├── requirements.lock.txt
+├── requirements.txt
+├── resources.qrc
+├── run_app.py
+├── run_app_multi.py
+├── SynRive.spec
+└── test.cmd

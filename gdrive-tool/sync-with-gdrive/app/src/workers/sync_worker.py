@@ -174,7 +174,6 @@ class RcloneSyncWorker(QObject):
                     shutil.copy2(src_path, dst_path)
 
     def _run_rclone(self, staging_dir: str) -> None:
-        # ... Giữ nguyên code cũ ...
         cmd = "copy" if self._options.action == SyncAction.ONLY_UPLOAD else "sync"
         dest = f"{self._active_remote}:{self._gdrive_path}"
         args: list[str] = [cmd, staging_dir, dest]
