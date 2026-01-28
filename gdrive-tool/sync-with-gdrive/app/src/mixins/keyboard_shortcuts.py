@@ -13,8 +13,8 @@ class KeyboardShortcutsDialogMixin(QDialog):
     def _add_keyboard_shortcuts(self):
         # Ctrl + Q (thoát ứng dụng)
         shortcut_ctrl_q = QShortcut(QKeySequence("Ctrl+Q"), self)
-        shortcut_ctrl_q.activated.connect(self.accept)
+        shortcut_ctrl_q.activated.connect(self.close)
 
         # Alt + Q (thoát ứng dụng)
         shortcut_alt_q = QShortcut(QKeySequence("Alt+Q"), self)
-        shortcut_alt_q.activated.connect(self.accept)
+        shortcut_alt_q.activated.connect(self.close)

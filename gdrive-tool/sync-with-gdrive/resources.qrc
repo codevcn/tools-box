@@ -1,5 +1,6 @@
 <!DOCTYPE RCC><RCC version="1.0">
-  <qresource prefix="icons">
+  <qresource prefix="/icons">
+    <file alias="app.ico">app/src/assets/app.ico</file>
     <file alias="app_logo.svg">app/src/assets/images/svg/app_logo.svg</file>
     <file alias="archive_icon.svg">app/src/assets/images/svg/archive_icon.svg</file>
     <file alias="audio_icon.svg">app/src/assets/images/svg/audio_icon.svg</file>

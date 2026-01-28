@@ -17,10 +17,13 @@ class MainWindowMixin(QWidget, GeneralWindowMixin):
         super().__init__()
         self._root_shell = QFrame()  # Cửa sổ chính
 
-    def _close_app(self):
+    def close_app_by_quit(self):
         """Hàm callback thực sự đóng ứng dụng."""
         QApplication.quit()
         sys.exit(0)
+
+    def close_app(self):
+        self._animate_close_window(self.close_app_by_quit)
 
     def set_animate_close_window(self, animate_close_window: Callable):
         """Thiết lập hàm callback đóng ứng dụng với hiệu ứng animation."""
@@ -30,15 +33,11 @@ class MainWindowMixin(QWidget, GeneralWindowMixin):
         """Bắt sự kiện nhấn các tổ hợp phím."""
         # Ctrl + Q (thoát ứng dụng)
         self.shortcut_ctrl_q = QShortcut(QKeySequence("Ctrl+Q"), self)
-        self.shortcut_ctrl_q.activated.connect(
-            lambda: self._animate_close_window(self._close_app)
-        )
+        self.shortcut_ctrl_q.activated.connect(self.close_app)
 
         # Alt + Q (thoát ứng dụng)
         self.shortcut_alt_q = QShortcut(QKeySequence("Alt+Q"), self)
-        self.shortcut_alt_q.activated.connect(
-            lambda: self._animate_close_window(self._close_app)
-        )
+        self.shortcut_alt_q.activated.connect(self.close_app)
 
     # --- PHẦN XỬ LÝ HIỆU ỨNG ANIMATION ĐÓNG MỞ APP---
     def _animate_open_zoom(self):

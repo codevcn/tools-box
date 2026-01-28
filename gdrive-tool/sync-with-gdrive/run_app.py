@@ -1,15 +1,20 @@
-# File dùng cho send to menu (chọn nhiều file -> gom nhiều file chạy script một lần)
+﻿import sys
+from pathlib import Path
 
-import sys
-import subprocess
+APP_SRC_DIR = Path(__file__).resolve().parent / "app" / "src"
+sys.path.insert(0, str(APP_SRC_DIR))
 
-PYTHON_EXE_FILE_PATH = r"D:\Python-3-12\python.exe"
-APP_PY_FILE_PATH = r"D:\D-Documents\TOOLs\gdrive-tool\sync-with-gdrive\app\src\app.py"
+from main import start_app  # noqa: E402 # type: ignore
 
 
 def run_app():
-    paths = sys.argv[1:]
-    subprocess.Popen([PYTHON_EXE_FILE_PATH, APP_PY_FILE_PATH, *paths])
+    """
+    Entry point cho:
+    - double click SynRive.exe
+    - context menu (file/folder/background/multi-select)
+    """
+    paths = sys.argv[1:]  # nhận toàn bộ path từ context menu
+    start_app(paths)
 
 
 if __name__ == "__main__":

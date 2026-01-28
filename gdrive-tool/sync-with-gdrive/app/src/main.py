@@ -40,7 +40,7 @@ from workers.sync_worker import (
 
 # from testing.mock_sync_worker import MockRcloneSyncWorker
 from data.data_manager import UserDataConfigSchema, UserDataManager
-from configs.configs import PathType, SyncError, ThemeColors
+from configs.configs import SyncError, ThemeColors
 from components.button import CustomButton
 from components.overlay import CustomOverlay
 from settings_screen import SettingsScreen
@@ -110,11 +110,16 @@ class MainWindow(MainWindowMixin):
     def _setup_ui(self) -> None:
         """Thiết lập giao diện người dùng."""
         self.setWindowTitle("Đồng bộ với Google Drive")
-        self.setWindowIcon(QIcon("app/src/assets/app.ico"))
+        self.setWindowIcon(QIcon(":/icons/app.ico"))
         self.setMinimumWidth(800)
 
         # Ẩn thanh tiêu đề gốc của hệ điều hành
-        self.setWindowFlags(Qt.WindowType.FramelessWindowHint)
+        self.setWindowFlags(
+            Qt.WindowType.Window
+            | Qt.WindowType.FramelessWindowHint
+            | Qt.WindowType.WindowMinimizeButtonHint
+            | Qt.WindowType.WindowSystemMenuHint
+        )
         self.setAttribute(
             Qt.WidgetAttribute.WA_TranslucentBackground, True
         )  # Nền trong suốt để bo góc thật sự
@@ -208,7 +213,9 @@ class MainWindow(MainWindowMixin):
 
         # Custom title bar
         self._title_bar = CustomWindowTitleBar(
-            root_shell=self._root_shell, close_app_handler=self._close_app, parent=self
+            root_shell=self._root_shell,
+            close_app_handler=self.close_app_by_quit,
+            parent=self,
         )
         self.set_animate_close_window(self._title_bar._animate_close_window)
         root_layout.addWidget(self._title_bar)
@@ -369,6 +376,7 @@ class MainWindow(MainWindowMixin):
 
     def _create_active_remote_info(self) -> QVBoxLayout:
         layout = QVBoxLayout()
+        layout.setContentsMargins(0, 8, 0, 0)
         layout.setSpacing(4)
 
         label = CustomLabel("Bạn đang đồng bộ lên kho lưu trữ:", is_bold=True)
@@ -552,7 +560,7 @@ class MainWindow(MainWindowMixin):
 
             quit_btn = CustomButton("Thoát", is_bold=True, fixed_height=48)
             quit_btn.setObjectName("QuitAppButton")
-            quit_btn.on_clicked(self._close_app)
+            quit_btn.on_clicked(self.close_app)
 
             btn_layout = QHBoxLayout()
             btn_layout.setSpacing(8)
@@ -775,7 +783,7 @@ class MainWindow(MainWindowMixin):
         self._render_user_data(self._data_manager.get_entire_config())
 
 
-def santize_input_paths() -> list[str]:
+def santize_input_paths(local_paths: list[str]) -> list[str]:
     """
     Lấy danh sách path được truyền từ lệnh ngoài.
     - Bỏ argv[0] (script path)
@@ -785,12 +793,10 @@ def santize_input_paths() -> list[str]:
     - Giữ nguyên thứ tự
     """
 
-    raw_args = sys.argv[1:]
-
     seen = set()
     result: list[str] = []
 
-    for arg in raw_args:
+    for arg in local_paths:
         if not arg:
             continue
 
@@ -814,7 +820,7 @@ def santize_input_paths() -> list[str]:
     return result
 
 
-def init_app() -> None:
+def start_app(local_paths: list[str]) -> None:
     """Hàm khởi tạo ứng dụng."""
     app = QApplication(sys.argv)
     font = app.font()
@@ -822,12 +828,8 @@ def init_app() -> None:
     app.setFont(font)
 
     # Lấy và sanitize input paths
-    local_paths = santize_input_paths()
+    local_paths = santize_input_paths(local_paths)
 
     window = MainWindow(local_paths)
     window.show()
     sys.exit(app.exec())
-
-
-if __name__ == "__main__":
-    init_app()

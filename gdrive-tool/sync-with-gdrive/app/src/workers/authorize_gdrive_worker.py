@@ -1,12 +1,13 @@
 from PySide6.QtCore import QObject, Signal, QProcess
 from PySide6.QtWidgets import QWidget
+from utils.helpers import rclone_config_path
 
 
 class RcloneDriveSetup(QObject):
     log = Signal(str)
     done = Signal(bool, str)  # (ok, message)
 
-    def __init__(self, rclone_exe: str = "rclone", parent: QWidget | None = None):
+    def __init__(self, rclone_exe: str, parent: QWidget | None = None):
         super().__init__(parent)
         self._rclone_exe: str = rclone_exe
         self._process: QProcess = QProcess(self)
@@ -25,9 +26,13 @@ class RcloneDriveSetup(QObject):
     def setup_drive_remote(self, remote_name: str, *, scope: str = "drive") -> None:
         # tạo remote (không token)
         # rồi reconnect để rclone tự login + lưu token
+        config = [
+            "--config",
+            str(rclone_config_path()),
+        ]
         self._queue = [
-            ["config", "create", remote_name, "drive", f"scope={scope}"],
-            ["config", "reconnect", f"{remote_name}:"],
+            config + ["config", "create", remote_name, "drive", f"scope={scope}"],
+            config + ["config", "reconnect", f"{remote_name}:"],
         ]
         self._run_next()
 
@@ -222,7 +227,7 @@ class RcloneDriveSetup(QObject):
             self._queue = []
             return
 
-        self.log.emit(">>> Đang hủy process...")
+        self.log.emit(">>> Hủy quá trình đồng bộ!")
         self._process.terminate()
 
         if wait_ms > 0:

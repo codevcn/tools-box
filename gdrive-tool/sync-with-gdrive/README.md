@@ -1,278 +1,148 @@
-# 🚀 Sync with Google Drive
+# Sync with Google Drive (SynRive)
 
-Ứng dụng desktop Windows giúp đồng bộ file và folder lên Google Drive nhanh chóng qua context menu chuột phải, sử dụng PySide6 (Qt) và rclone.
+Ứng dụng desktop (PySide6) giúp đồng bộ file/thư mục từ máy lên Google Drive bằng rclone, có UI trực quan, log chi tiết và hỗ trợ chọn nhiều mục từ Windows Explorer.
 
-## ✨ Tính năng
+## Tính năng chính
+- Đăng nhập Google Drive qua rclone OAuth và lưu remote đã cấu hình.
+- Chọn nhiều file/thư mục local, xem preview kèm icon theo loại.
+- Nhập đường dẫn đích trên Google Drive và đồng bộ 1 lần bằng rclone `copy`.
+- Hiển thị log chi tiết và tiến trình từng file.
+- Tích hợp context menu Windows cho file, folder và background folder (multi-select).
+- Cửa sổ Settings: phím tắt + About.
 
-- 🖱️ **Context menu integration**: Chuột phải trên file/folder → "Sync with Google Drive"
-- 📦 **Multi-select support**: Chọn nhiều file/folder cùng lúc
-- 🔐 **Multi-account**: Hỗ trợ nhiều tài khoản Google Drive
-- 📊 **Progress tracking**: Theo dõi tiến trình chi tiết từng file
-- ⚡ **Master-Slave architecture**: Gom file thông minh với socket TCP
-- 🎨 **Modern dark UI**: Giao diện đẹp với theme tối
-- ⌨️ **Keyboard shortcuts**: Ctrl+Q, Ctrl+Enter, Ctrl+O, Ctrl+I
-- 🔄 **Auto-login**: Tự động xử lý OAuth với Google Drive
+## Yêu cầu
+- Windows.
+- Python 3.x để chạy dạng script.
+- `PySide6` (có trong `requirements.txt`).
+- `rclone.exe`.
 
-## 📋 Yêu cầu
-
-- **Windows 10/11**
-- **Python 3.10+** (khuyến nghị 3.12)
-- **rclone** (phải có trong PATH)
-- **PySide6** và dependencies
-
-## 🔧 Cài đặt
-
-### 1. Cài đặt Python dependencies
-
-```bash
-pip install PySide6
+## Cài đặt nhanh (dev)
+```powershell
+pip install -r requirements.txt
+py app/src/main.py
 ```
 
-### 2. Cài đặt rclone
-
-Tải và cài đặt [rclone](https://rclone.org/downloads/) cho Windows, đảm bảo `rclone.exe` nằm trong PATH.
-
-Kiểm tra:
-```bash
-rclone version
+Hoặc dùng:
+```powershell
+dev.cmd
 ```
 
-### 3. Cấu hình đường dẫn
+> Lưu ý: `run_app.py` và `run_app_multi.py` đang hardcode đường dẫn Python và `main.py`. Nếu máy bạn khác, cần sửa lại 2 file này.
 
-Chỉnh sửa các file sau để phù hợp với hệ thống của bạn:
-
-**run_app_multi.py**:
-```python
-PYTHON_EXE_FILE_PATH = r"D:\Python-3-12\python.exe"  # Đường dẫn Python của bạn
-APP_PY_FILE_PATH = r"D:\...\sync-with-gdrive\app\src\app.py"  # Đường dẫn app.py
+## Chuẩn bị rclone.exe
+### 1) Cho bước **đồng bộ**
+Hàm `rclone_executable_path()` đang trỏ tới:
 ```
-
-**run_app.py**: Tương tự như trên
-
-**add_sync_with_gdrive.reg**: Chỉnh sửa tất cả đường dẫn:
-```reg
-@="\"D:\\Python-3-12\\python.exe\" \"D:\\...\\run_app_multi.py\" \"%1\""
-"Icon"="D:\\...\\app_logo.ico"
+app/build/bin/rclone.exe
 ```
+Hãy đặt `rclone.exe` đúng vị trí trên trước khi sync, hoặc chỉnh lại đường dẫn trong `app/src/utils/helpers.py`.
 
-### 4. Đăng ký Context Menu
+### 2) Cho bước **đăng nhập**
+`LoginGDriveScreen` dùng `RcloneDriveSetup` với tham số mặc định `rclone` → cần `rclone.exe` nằm trong `PATH`.
 
-1. Mở file `add_sync_with_gdrive.reg` bằng Notepad
-2. Kiểm tra lại tất cả đường dẫn đã chính xác
-3. Double-click file `.reg` để thêm vào Registry
-4. Chấp nhận cảnh báo của Windows
+Nếu bạn không muốn chỉnh PATH, có thể sửa code để truyền đường dẫn tuyệt đối vào `RcloneDriveSetup` (gợi ý: dùng `rclone_executable_path()`).
 
-## 🎯 Cách sử dụng
+## Cách dùng app (chi tiết)
+### Bước 1: Mở app
+- Chạy `py app/src/main.py` hoặc `dev.cmd`.
+- Có thể truyền sẵn đường dẫn:
+  ```powershell
+  py app/src/main.py "C:\Data\ProjectA" "D:\Docs\Report.pdf"
+  ```
 
-### Lần đầu sử dụng
+### Bước 2: Chọn file/thư mục local
+Bạn có 2 cách:
+- Nhấn nút **“Chọn thư mục/tệp...”** (Ctrl+O) để chọn 1 thư mục.
+- Hoặc mở từ context menu Windows (xem phần “Tích hợp context menu”).
 
-1. Chọn file/folder → Chuột phải → **"Sync with Google Drive"**
-2. Click **"Đăng nhập Google Drive"**
-3. Nhập tên kho lưu trữ (ví dụ: "My Drive", "Work Drive")
-4. Trình duyệt sẽ mở → Đăng nhập Google và cấp quyền
-5. Hoàn tất!
+Các mục đã chọn sẽ hiển thị dưới dạng chip; click vào chip sẽ mở File Explorer và select đúng file/thư mục.
 
-### Sử dụng thường xuyên
+### Bước 3: Đăng nhập Google Drive
+1. Nhấn **“Đăng nhập Google Drive”** (Ctrl+L).
+2. Nhập tên remote (ví dụ: `Drive cá nhân`).
+3. Rclone sẽ mở trình duyệt để bạn cấp quyền.
+4. Sau khi login thành công, remote sẽ được lưu và đặt là active.
 
-1. Chọn file/folder muốn sync
-2. Chuột phải → **"Sync with Google Drive"**
-3. Chọn kho lưu trữ (nếu có nhiều tài khoản)
-4. Nhập đường dẫn đích trên Google Drive (ví dụ: `Documents/Projects`)
-5. Click **"Đồng bộ ngay"** hoặc nhấn **Ctrl+Enter**
-6. Theo dõi tiến trình trong dialog
+> Nếu login không chạy, kiểm tra rclone trong `PATH`.
 
-### Phím tắt
+### Bước 4: Chọn kho lưu trữ (Active Remote)
+Nhấn vào thanh **“Bạn đang đồng bộ lên kho lưu trữ”** để mở danh sách remote và chọn remote đang dùng.
 
-| Phím tắt | Chức năng |
-|----------|-----------|
-| `Ctrl+Q` hoặc `Alt+Q` | Thoát ứng dụng |
-| `Ctrl+Enter` | Bắt đầu đồng bộ |
-| `Ctrl+O` | Chọn thư mục/tệp |
-| `Ctrl+I` | Mở cài đặt |
-
-## 📁 Cấu trúc dự án
-
+### Bước 5: Nhập đường dẫn đích trên Google Drive
+Nhập theo format:
 ```
-sync-with-gdrive/
-├── app/
-│   └── src/
-│       ├── app.py                      # Main window
-│       ├── login_gdrive_screen.py      # Dialog đăng nhập
-│       ├── active_remote_info.py       # Chọn kho lưu trữ
-│       ├── settings_screen.py          # Cài đặt
-│       ├── sync_progress.py            # Dialog tiến trình
-│       ├── components/                 # UI components
-│       │   ├── button.py
-│       │   ├── dialog.py
-│       │   ├── label.py
-│       │   └── ...
-│       ├── workers/                    # Background tasks
-│       │   ├── sync_worker.py          # Rclone sync worker
-│       │   └── authorize_gdrive_worker.py
-│       ├── data/
-│       │   ├── data_manager.py         # Quản lý config
-│       │   └── sync-with-gdrive.json   # User data
-│       ├── configs/
-│       │   └── configs.py              # Constants & colors
-│       ├── utils/
-│       │   └── helpers.py              # Helper functions
-│       └── mixins/
-│           └── keyboard_shortcuts.py
-├── run_app_multi.py                    # Launcher (multi-select)
-├── run_app.py                          # Launcher (send-to)
-├── add_sync_with_gdrive.reg            # Registry file
-├── app_logo.ico                        # Icon
-├── dev.cmd                             # Development script
-└── test.cmd                            # Test script
+Thu muc 1/Thu muc 2/Thu muc 3
 ```
+Không cần dấu `/` ở đầu hoặc cuối. App sẽ lưu đường dẫn đã nhập gần nhất.
 
-## ⚙️ Cơ chế hoạt động
+### Bước 6: Đồng bộ
+Nhấn **“Đồng bộ ngay”** hoặc Ctrl+Enter.
 
-### Master-Slave Architecture (run_app_multi.py)
+App sẽ:
+- Tạo thư mục staging tạm.
+- Symlink hoặc copy file/thư mục vào staging.
+- Chạy rclone `copy` tới `remote:duong_dan`.
 
-Khi user chọn nhiều file, Windows gọi script nhiều lần song song. Để gom tất cả file vào 1 lần chạy app:
+> Hiện tại code đang dùng `MockRcloneSyncWorker` (giả lập tiến trình).  
+> Để chạy sync thật, hãy chuyển sang `RcloneSyncWorker` trong `app/src/main.py`.
 
+### Bước 7: Theo dõi tiến trình & log
+- Cửa sổ tiến trình hiển thị % từng file.
+- Log chi tiết ở phần “Chi tiết đồng bộ”.
+- Có nút **“Sao chép”** để copy log nhanh.
+
+### Bước 8: Cài đặt (Settings)
+Nhấn Ctrl+I hoặc nút Settings (nếu đã login) để xem:
+- Danh sách phím tắt.
+- About (tên app, version, tác giả).
+
+## Tích hợp context menu Windows
+File: `add_sync_with_gdrive.reg`
+- Tạo menu “Sync with Google Drive” cho:
+  - File
+  - Folder
+  - Background folder (chuột phải trong thư mục)
+
+Trước khi chạy `.reg`, hãy chỉnh lại:
+- `PYTHON_EXE_FILE_PATH`
+- `APP_PY_FILE_PATH`
+
+Sau đó chạy file `.reg` để thêm vào Registry.
+
+## Phím tắt
+Ở màn hình chính:
+- Ctrl+Q hoặc Alt+Q: Thoát app
+- Ctrl+Enter: Đồng bộ ngay
+- Ctrl+O: Chọn file/thư mục local
+- Ctrl+I: Mở Settings
+- Ctrl+L: Đăng nhập Google Drive
+
+Ở các dialog khác:
+- Ctrl+Q hoặc Alt+Q: Đóng dialog
+
+## Lưu dữ liệu người dùng
+File cấu hình được lưu tại:
 ```
-┌─────────────────────────────────────────────────────┐
-│ User chọn 3 files → Windows gọi script 3 lần       │
-└─────────────────────────────────────────────────────┘
-                    ↓
-        ┌───────────┴────────────┐
-        ↓                        ↓                    ↓
-   Process 1               Process 2           Process 3
-  (Master)                 (Slave)             (Slave)
-        │                        │                    │
-   Bind port 65432         Try bind → Fail      Try bind → Fail
-        │                        │                    │
-   Listen for files         Send file          Send file
-        │                   to Master          to Master
-        │◄───────────────────┘                       │
-        │◄────────────────────────────────────────────┘
-        │
-   Wait 1s (sliding timeout)
-        │
-   No more files → Launch app with all 3 files
+%APPDATA%\SynRive\data\sync-with-gdrive.json
 ```
+Bao gồm:
+- Danh sách remote đã tạo
+- Remote đang active
+- Đường dẫn Drive đã nhập gần nhất
 
-**Cơ chế Sliding Timeout**: Timeout reset mỗi khi nhận file mới, đảm bảo gom đủ tất cả file.
+## Troubleshooting nhanh
+- **Không tìm thấy rclone.exe**  
+  → Đặt `rclone.exe` vào `app/build/bin/` hoặc chỉnh `rclone_executable_path()`.
 
-### Sync Worker (RcloneSyncWorker)
+- **Login không chạy / không mở browser**  
+  → Cần `rclone.exe` trong `PATH` (login đang dùng `rclone` mặc định).
 
-1. Tạo staging directory (temp folder)
-2. Symlink/copy files vào staging
-3. Gọi `rclone copy` với `--use-json-log`
-4. Parse JSON log real-time để lấy progress
-5. Emit signals để update UI
-6. Cleanup staging sau khi xong
+- **Không thấy đồng bộ thật**  
+  → Đang dùng mock worker. Chuyển sang `RcloneSyncWorker` trong `app/src/main.py`.
 
-## 🔍 Troubleshooting
+- **Context menu không xuất hiện**  
+  → Chạy lại `.reg` sau khi cập nhật đường dẫn Python/app.
 
-### Vấn đề: Không thấy "Sync with Google Drive" trong context menu
-
-**Giải pháp**:
-1. Kiểm tra file `.reg` đã chạy chưa
-2. Restart File Explorer: `Ctrl+Shift+Esc` → Restart "Windows Explorer"
-3. Kiểm tra đường dẫn trong Registry Editor (`regedit.exe`):
-   - `HKEY_CURRENT_USER\Software\Classes\*\shell\SyncWithGDrive`
-   - `HKEY_CURRENT_USER\Software\Classes\Directory\shell\SyncWithGDrive`
-
-### Vấn đề: App không mở hoặc crash
-
-**Giải pháp**:
-1. Kiểm tra log: `%USERPROFILE%\AppData\Local\Temp\SyncWithGDrive\errors.log`
-2. Kiểm tra Python path trong script có đúng không
-3. Test trực tiếp: `python app/src/app.py "D:\test.txt"`
-
-### Vấn đề: "Không tìm thấy rclone"
-
-**Giải pháp**:
-```bash
-# Kiểm tra rclone
-where rclone
-
-# Nếu không có, thêm vào PATH hoặc đặt đường dẫn đầy đủ
-```
-
-### Vấn đề: Chọn 2 file nhưng chỉ sync 1 file
-
-**Giải pháp**:
-- Tăng `SLIDING_TIMEOUT` trong `run_app_multi.py` (mặc định 1.0s)
-- Kiểm tra log test: `%USERPROFILE%\AppData\Local\Temp\SyncWithGDrive\test.log`
-
-### Vấn đề: "Permission denied" khi sync
-
-**Giải pháp**:
-1. Đăng nhập lại Google Drive
-2. Kiểm tra scope: Phải là `drive` (full access)
-3. Xóa token cũ: `rclone config` → Delete remote → Tạo lại
-
-## 📝 Config file
-
-**Vị trí**: `app/src/data/sync-with-gdrive.json`
-
-```json
-{
-    "remotes": ["My-Drive", "Work-Drive"],
-    "active_remote": "My-Drive",
-    "last_gdrive_entered_dir": "Documents/Projects",
-    "last_sync": "2026-01-26T10:30:00"
-}
-```
-
-## 🛠️ Development
-
-### Chạy trực tiếp (test)
-
-```bash
-# Test với 1 file
-python app/src/app.py "D:\test.txt"
-
-# Test với nhiều file
-python app/src/app.py "D:\file1.txt" "D:\file2.txt" "D:\folder"
-
-# Hoặc dùng dev.cmd
-dev "D:\test.txt"
-```
-
-### Test Master-Slave
-
-```bash
-# Terminal 1
-python run_app_multi.py "D:\file1.txt"
-
-# Terminal 2 (trong vòng 1 giây)
-python run_app_multi.py "D:\file2.txt"
-```
-
-### Gỡ context menu
-
-Tạo file `remove_sync_with_gdrive.reg`:
-```reg
-Windows Registry Editor Version 5.00
-
-[-HKEY_CURRENT_USER\Software\Classes\*\shell\SyncWithGDrive]
-[-HKEY_CURRENT_USER\Software\Classes\Directory\shell\SyncWithGDrive]
-[-HKEY_CURRENT_USER\Software\Classes\Directory\Background\shell\SyncWithGDrive]
-```
-
-## 📄 License
-
-MIT License - Tự do sử dụng và chỉnh sửa.
-
-## 🤝 Contributing
-
-Mọi đóng góp đều được hoan nghênh! Vui lòng:
-1. Fork repo
-2. Tạo branch mới
-3. Commit changes
-4. Push và tạo Pull Request
-
-## 📧 Liên hệ
-
-Nếu gặp vấn đề, vui lòng tạo issue trên GitHub hoặc kiểm tra log files:
-- Error log: `%TEMP%\SyncWithGDrive\errors.log`
-- Test log: `%TEMP%\SyncWithGDrive\test.log`
-
----
-
-**Made with ❤️ using PySide6 & rclone**
+## Ghi chú cho dev
+- Khi cập nhật icon hoặc `resources.qrc`, chạy `gen-asset.cmd` để rebuild `app/src/resources_rc.py`.
+- `run_app_multi.py` gom nhiều item bằng socket port 65432 và chạy app một lần với danh sách paths.

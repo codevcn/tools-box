@@ -1,12 +1,13 @@
-from PySide6.QtWidgets import QFrame, QVBoxLayout, QGraphicsDropShadowEffect
-from PySide6.QtCore import Qt, QEvent
+from PySide6.QtWidgets import QFrame, QVBoxLayout, QGraphicsDropShadowEffect, QWidget
+from PySide6.QtCore import Qt, QEvent, QObject
 from PySide6.QtGui import QColor
 
 
 class CustomOverlay(QFrame):
+
     def __init__(
         self,
-        parent_widget: QFrame,
+        parent_widget: QWidget,
         align=Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft,
         margin=10,
     ):
@@ -72,3 +73,59 @@ class CustomOverlay(QFrame):
 
         self.move(x, y)
         self.raise_()  # Đảm bảo luôn nằm trên
+
+
+class CenteredOverlay(QObject):
+    def __init__(self, container: QWidget, overlay: QWidget):
+        super().__init__(
+            container
+        )  # QObject cha là container để tự hủy khi container bị hủy
+        self.container = container
+        self.overlay = overlay
+
+        # Đưa overlay vào container
+        self.overlay.setParent(container)
+        self.overlay.raise_()
+
+        # Cài đặt filter
+        self.container.installEventFilter(self)
+
+        # Căn giữa lần đầu
+        self.recenter()
+        self.overlay.show()
+
+    def eventFilter(self, watched, event):
+        if watched is self.container and event.type() == QEvent.Type.Resize:
+            self.recenter()
+        return super().eventFilter(watched, event)
+
+    def recenter(self):
+        # 1. Lấy kích thước vùng hiển thị của cha
+        rect = self.container.contentsRect()
+
+        # 2. Lấy kích thước hiện tại của overlay
+        # (Dùng size() thay vì sizeHint() để tôn trọng FixedSize hoặc layout bên trong overlay)
+        child_size = self.overlay.size()
+
+        # Nếu overlay chưa có size (lần đầu hiện), có thể dùng sizeHint làm fallback
+        if child_size.width() == 0:
+            child_size = self.overlay.sizeHint()
+            self.overlay.resize(child_size)  # Chỉ resize lần đầu nếu cần
+
+        # 3. Tính toán vị trí
+        x = rect.x() + (rect.width() - child_size.width()) // 2
+        y = rect.y() + (rect.height() - child_size.height()) // 2
+
+        # 4. Chỉ di chuyển, không ép lại size (tránh lỗi reset size)
+        self.overlay.move(x, y)
+        self.overlay.raise_()
+
+    def hide(self):
+        """Ẩn widget overlay"""
+        self.overlay.hide()
+
+    def show(self):
+        """Hiện widget overlay"""
+        self.overlay.show()
+        self.overlay.raise_()
+        self.recenter()  # Tính lại vị trí để đảm bảo chính xác

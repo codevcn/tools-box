@@ -33,56 +33,69 @@ class ToolTipConfig:
 
 
 # --- 3. The Visual Tooltip Widget ---
+from PySide6.QtWidgets import QFrame, QVBoxLayout, QGraphicsDropShadowEffect
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QColor
+
+
 class CustomToolTip(QFrame):
-    def __init__(self, config: ToolTipConfig, parent=None):
+    def __init__(self, config, parent=None):
         super().__init__(parent)
         self.setObjectName("CustomToolTipRoot")
-
         self.config = config
 
-        # Cấu hình Window Flags để nó nổi lên trên và không có khung
         self.setWindowFlags(
             Qt.WindowType.ToolTip
             | Qt.WindowType.FramelessWindowHint
             | Qt.WindowType.WindowStaysOnTopHint
-            | Qt.WindowType.NoDropShadowWindowHint  # Tắt bóng mặc định của OS để dùng bóng custom
-        )# BẮT BUỘC: Cho phép vẽ background khi dùng ID Selector trong Stylesheet
-        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
-        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
-        self.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating)
+            | Qt.WindowType.NoDropShadowWindowHint
+        )
 
-        # Layout & Content
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(10, 8, 10, 8)
+        # Root window: trong suốt hoàn toàn (KHÔNG style background lên đây)
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
+        self.setAttribute(Qt.WidgetAttribute.WA_NoSystemBackground, True)
+
+        # Root layout: chừa mép để shadow không bị cắt
+        root = QVBoxLayout(self)
+        root.setContentsMargins(12, 12, 12, 12)  # quan trọng
+        root.setSpacing(0)
+
+        # Bubble: nơi thật sự được vẽ bằng stylesheet
+        self.bubble = QFrame(self)
+        self.bubble.setObjectName("ToolTipBubble")
+        bubble_layout = QVBoxLayout(self.bubble)
+        bubble_layout.setContentsMargins(8, 8, 8, 8)
+        bubble_layout.setSpacing(0)
 
         self.label = CustomLabel(config.text)
         self.label.setObjectName("ToolTipLabel")
         self.label.setWordWrap(True)
         self.label.setMaximumWidth(config.max_width)
 
-        # Styling
+        bubble_layout.addWidget(self.label)
+        root.addWidget(self.bubble)
+
+        # Style apply lên bubble + label
         self.setStyleSheet(
             f"""
             #ToolTipLabel {{
                 color: {config.text_color};
                 font-size: {config.font_size}pt;
             }}
-            #CustomToolTipRoot {{
+            #ToolTipBubble {{
                 background-color: {config.background_color};
-                border: 1px solid white;
+                border: 1px solid {ThemeColors.GRAY_BORDER};
                 border-radius: 8px;
-                padding: 4px;
             }}
-        """
+            """
         )
-        layout.addWidget(self.label)
 
-        # Drop Shadow Effect (Hiệu ứng đổ bóng)
-        shadow = QGraphicsDropShadowEffect(self)
-        shadow.setBlurRadius(15)
-        shadow.setColor(QColor(0, 0, 0, 60))
+        # Shadow apply lên bubble (ổn hơn apply lên root translucent)
+        shadow = QGraphicsDropShadowEffect(self.bubble)
+        shadow.setBlurRadius(18)
+        shadow.setColor(QColor(0, 0, 0, 70))
         shadow.setOffset(0, 4)
-        self.setGraphicsEffect(shadow)
+        self.bubble.setGraphicsEffect(shadow)
 
 
 # --- 4. The Logic Binder ---

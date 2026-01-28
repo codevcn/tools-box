@@ -9,7 +9,7 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt, QSize, Signal
 from components.announcement import CustomAnnounce
 from data.data_manager import UserDataManager
-from utils.helpers import get_svg_as_icon
+from utils.helpers import get_svg_as_icon, rclone_executable_path
 from configs.configs import ThemeColors
 from components.label import AutoHeightLabel, CustomLabel
 from PySide6.QtGui import QFontMetrics
@@ -33,7 +33,9 @@ class LoginGDriveScreen(KeyboardShortcutsDialogMixin):
         self._data_manager: UserDataManager = UserDataManager()
         self._remote_name_input: QLineEdit
         self._action_button: CustomButton
-        self._rclone_setup: RcloneDriveSetup = RcloneDriveSetup(parent=self)
+        self._rclone_setup: RcloneDriveSetup = RcloneDriveSetup(
+            rclone_exe=rclone_executable_path(), parent=self
+        )
         self._rclone_setup.log.connect(self._on_login_log)
         self._rclone_setup.done.connect(self._on_login_done)
         self._pending_remote_name: str | None = None

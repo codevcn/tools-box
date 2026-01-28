@@ -8,13 +8,14 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 from PySide6.QtCore import Qt, Signal, QSize
-
+from PySide6.QtGui import QCloseEvent
 from utils.helpers import get_svg_as_icon
 from configs.configs import ThemeColors
 from workers.sync_worker import SyncProgressData
 from components.label import CustomLabel
 from components.button import CustomButton
 from mixins.keyboard_shortcuts import KeyboardShortcutsDialogMixin
+from components.overlay import CenteredOverlay
 
 
 class SyncProgressItem(QFrame):
@@ -87,9 +88,9 @@ class SyncProgressItem(QFrame):
         self.label_percent.setStyleSheet("color: #aaa;")
         layout.addWidget(self.label_percent)
 
-    def update_progress(self, percent: int):
+    def update_progress(self, percent: float):
         """Cập nhật tiến độ"""
-        self.progress_bar.setValue(percent)
+        self.progress_bar.setValue(int(percent))
         self.label_percent.setText(f"{percent}%")
 
         if percent >= 100:
@@ -127,10 +128,15 @@ class SyncProgressDialog(KeyboardShortcutsDialogMixin):
 
         # Dictionary để map tên file -> Widget dòng tương ứng
         # Key: file_name, Value: SyncProgressItem
-        self._items_map = {}
+        self._items_map: dict[str, SyncProgressItem] = {}
 
         self._setup_ui()
         self._apply_styles()
+
+    def closeEvent(self, event: QCloseEvent) -> None:
+        # ví dụ: hỏi xác nhận
+        self._on_cancel()
+        super().closeEvent(event)
 
     def _setup_ui(self):
         layout = QVBoxLayout(self)
@@ -153,6 +159,12 @@ class SyncProgressDialog(KeyboardShortcutsDialogMixin):
         )  # Không cho user chọn dòng
         self.list_widget.setVerticalScrollMode(QListWidget.ScrollMode.ScrollPerPixel)
         layout.addWidget(self.list_widget)
+
+        empty_text = CustomLabel("Bắt đầu đồng bộ...", font_size=14)
+        empty_text.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.empty_text_overlay = CenteredOverlay(
+            self.list_widget.viewport(), empty_text
+        )
 
         # Footer Button
         self.btn_cancel = CustomButton("Hủy đồng bộ", is_bold=True, font_size=14)
@@ -222,6 +234,18 @@ class SyncProgressDialog(KeyboardShortcutsDialogMixin):
         # 5. Auto scroll xuống dưới cùng
         self.list_widget.scrollToBottom()
 
+        self.hide_overlay()
+
+    def hide_overlay(self):
+        """Ẩn overlay thông báo trống nếu nó đang hiện"""
+        if self.empty_text_overlay:
+            self.empty_text_overlay.hide()  # Gọi hàm hide() vừa thêm ở overlay.py
+
+    def show_overlay(self):
+        """Hiện lại overlay thông báo trống"""
+        if self.empty_text_overlay:
+            self.empty_text_overlay.show()
+
     def _on_cancel(self):
         self.cancel_requested.emit()
 
@@ -235,3 +259,4 @@ class SyncProgressDialog(KeyboardShortcutsDialogMixin):
         self._items_map.clear()
         self.btn_cancel.setText("Hủy đồng bộ")
         self.btn_cancel.setEnabled(True)
+        self.show_overlay()

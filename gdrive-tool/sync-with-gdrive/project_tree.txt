@@ -66,8 +66,9 @@ Tree view of: D:\D-Documents\TOOLs\gdrive-tool\sync-with-gdrive
 │       │   └── sync-with-gdrive.json
 │       ├── login_gdrive_screen.py
 │       ├── mixins
-│       │   ├── app_window.py
-│       │   └── keyboard_shortcuts.py
+│       │   ├── keyboard_shortcuts.py
+│       │   ├── main_window.py
+│       │   └── window.py
 │       ├── resources_rc.py
 │       ├── settings_screen.py
 │       ├── sync_progress.py
@@ -98,6 +99,7 @@ Tree view of: D:\D-Documents\TOOLs\gdrive-tool\sync-with-gdrive
 ├── run_app.py
 ├── run_app_multi.py
 ├── scripts
+│   ├── gen_resources.py
 │   ├── gen_version_info.py
 │   ├── git_commit.py
 │   └── release_changelog.py

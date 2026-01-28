@@ -8,7 +8,7 @@ from datetime import datetime
 from pathlib import Path
 
 PYTHON_EXE_FILE_PATH = r"D:\Python-3-12\python.exe"
-APP_PY_FILE_PATH = r"D:\D-Documents\TOOLs\gdrive-tool\sync-with-gdrive\app\src\app.py"
+APP_PY_FILE_PATH = r"D:\D-Documents\TOOLs\gdrive-tool\sync-with-gdrive\app\src\main.py"
 
 # --- CẤU HÌNH ---
 PORT = 65432  # Cổng TCP để Master lắng nghe kết nối từ Slave (nên chọn cổng > 1024)

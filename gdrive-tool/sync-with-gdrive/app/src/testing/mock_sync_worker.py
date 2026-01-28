@@ -76,7 +76,7 @@ class MockRcloneSyncWorker(QObject):
 
     def cancel(self):
         if self._is_running:
-            self.log.emit("> [MOCK] Đang hủy quá trình...")
+            self.log.emit("> [MOCK] Hủy quá trình đồng bộ!")
             self._timer.stop()
             self._is_running = False
 

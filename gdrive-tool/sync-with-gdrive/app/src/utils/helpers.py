@@ -31,6 +31,34 @@ def resolve_from_root_dir(*parts: str) -> str:
     return str(project_root_dir().joinpath(*parts))
 
 
+def rclone_executable_path() -> str:
+    """
+    Trả về đường dẫn tuyệt đối đến rclone.exe:
+    - Frozen (PyInstaller): nằm ở root bundle (cạnh exe)
+    - Dev: lấy từ 1 vị trí bạn đặt rclone trong repo (gợi ý: app/dev/bin/rclone.exe)
+    """
+    path = ""
+    if getattr(sys, "frozen", False):
+        path = resolve_from_root_dir("rclone.exe")
+
+    path = resolve_from_root_dir("app", "build", "bin", "rclone.exe")
+    if not Path(path).exists():
+        raise RuntimeError(f"Không tìm thấy rclone.exe tại: {path}")
+    return path
+
+
+def ensure_rclone_exists() -> bool:
+    p = Path(rclone_executable_path())
+    return p.exists()
+
+
+def rclone_config_path() -> Path:
+    # %AppData%/SynRive/rclone/rclone.conf
+    p = app_data_dir() / "rclone"
+    p.mkdir(parents=True, exist_ok=True)
+    return p / "rclone.conf"
+
+
 def _normalize_qrc_path(path: str) -> str:
     if not path:
         return path

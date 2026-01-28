@@ -1,34 +1,48 @@
-import os
+from __future__ import annotations
+
+from pathlib import Path
 
 
-def generate_qrc():
-    # Đường dẫn đến thư mục chứa icon
-    assets_dir = "app/src/assets/images/svg"
-    qrc_content = ['<!DOCTYPE RCC><RCC version="1.0">', '  <qresource prefix="icons">']
+def generate_qrc() -> None:
+    svg_dir = Path("app/src/assets/images/svg")
+    ico_file = Path("app/src/assets/app.ico")
+    out_qrc = Path("resources.qrc")
 
-    # Quét tất cả file .svg
-    if os.path.exists(assets_dir):
-        for filename in os.listdir(assets_dir):
-            if filename.endswith(".svg"):
-                # Quan trọng: Tạo alias để code có thể gọi ngắn gọn
-                # Ví dụ: code gọi ":/icons/app_logo.svg" -> trỏ tới "app/src/assets/images/svg/app_logo.svg"
-                file_path = f"{assets_dir}/{filename}"
-                qrc_content.append(f'    <file alias="{filename}">{file_path}</file>')
+    qrc_lines: list[str] = [
+        '<!DOCTYPE RCC><RCC version="1.0">',
+        '  <qresource prefix="/icons">',
+    ]
+
+    # 1) Add app icon (.ico) vào QRC (nếu tồn tại)
+    if ico_file.exists():
+        # alias để gọi: :/icons/app.ico
+        qrc_lines.append(f'    <file alias="app.ico">{ico_file.as_posix()}</file>')
     else:
-        print(f"Không tìm thấy thư mục: {assets_dir}")
+        print(f"[WARN] Không tìm thấy icon: {ico_file}")
+
+    # 2) Add tất cả .svg trong thư mục svg
+    if not svg_dir.exists():
+        print(f"[ERROR] Không tìm thấy thư mục SVG: {svg_dir}")
         return
 
-    qrc_content.append("  </qresource>")
-    qrc_content.append("</RCC>")
-
-    # Ghi ra file resources.qrc
-    with open("resources.qrc", "w", encoding="utf-8") as f:
-        f.write("\n".join(qrc_content))
-
-    print("Đã tạo xong file 'resources.qrc'.")
-    print(
-        "Vui lòng chạy lệnh biên dịch: pyside6-rcc resources.qrc -o app/src/resources_rc.py"
+    svg_files = sorted(
+        [p for p in svg_dir.iterdir() if p.is_file() and p.suffix == ".svg"]
     )
+    if not svg_files:
+        print(f"[WARN] Không có file .svg trong: {svg_dir}")
+
+    for p in svg_files:
+        # alias để gọi: :/icons/<filename>.svg
+        qrc_lines.append(f'    <file alias="{p.name}">{p.as_posix()}</file>')
+
+    qrc_lines.append("  </qresource>")
+    qrc_lines.append("</RCC>")
+
+    out_qrc.write_text("\n".join(qrc_lines), encoding="utf-8")
+
+    print(f"Đã tạo xong file '{out_qrc}'.")
+    print("Biên dịch QRC -> resources_rc.py bằng lệnh:")
+    print("  pyside6-rcc resources.qrc -o app/src/resources_rc.py")
 
 
 if __name__ == "__main__":
