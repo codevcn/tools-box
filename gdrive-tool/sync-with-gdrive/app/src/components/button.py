@@ -15,18 +15,9 @@ class CustomButton(QPushButton):
         font_size: int | None = None,
         fixed_height: int | None = None,
         fixed_width: int | None = None,
-        # --- Tham số mới cho Loading ---
-        loader_color: str = "#000000",  # Màu mặc định của dots (trắng cho nút màu đậm)
-        loader_size: int = 10,  # Kích thước dot nhỏ gọn cho nút
     ):
         super().__init__(text, parent)
 
-        # --- 1. Khởi tạo state trước (để tránh lỗi khi setEnabled gọi) ---
-        self._is_loading = False
-        self._original_text = text
-        self._original_icon = self.icon()
-
-        # --- 2. Setup cơ bản cũ ---
         self.setEnabled(bool(default_enabled))
 
         font = self.font()
@@ -41,32 +32,8 @@ class CustomButton(QPushButton):
         if fixed_width:
             self.setFixedWidth(fixed_width)
 
-        # --- 3. Setup Loading Component ---
-
-        # Tạo layout để căn giữa loader
-        self._layout = QHBoxLayout(self)
-        self._layout.setContentsMargins(0, 0, 0, 0)
-        self._layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
-
-        # Khởi tạo LoadingDots (ẩn mặc định)
-        self._loader = LoadingDots(
-            parent=self,
-            dot_count=3,
-            dot_size=loader_size,
-            color=loader_color,
-            spacing=4,  # Khoảng cách nhỏ lại cho vừa nút
-        )
-        self._loader.hide()  # Quan trọng: Phải ẩn lúc đầu
-
-        # Thêm vào layout
-        self._layout.addWidget(self._loader)
-
     # --- Các method cũ ---
     def setEnabled(self, enabled: bool) -> None:
-        # Nếu đang loading thì không cho phép enable lại (tránh logic sai)
-        if self._is_loading and enabled:
-            return
-
         super().setEnabled(enabled)
         if enabled:
             self.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -97,15 +64,121 @@ class CustomButton(QPushButton):
             size = icon_size if icon_size else 14
             self.setIconSize(QSize(size, size))
 
-    def setIcon(self, icon: QIcon | QPixmap) -> None:
-        if not self._is_loading:
-            self._original_icon = icon
-        return super().setIcon(icon)
-
     def clear_icon(self) -> None:
         """Remove icon hiện tại khỏi button."""
         self.setIcon(QIcon())
         self.setIconSize(self.iconSize())  # optional, để giữ size không đổi
+
+    def update_icon_color(self, color: str, size: int | None = None) -> None:
+        """
+        Đổi màu icon hiện tại.
+        Fix lỗi: Tự động giữ nguyên độ phân giải gốc của ảnh thay vì co về size mặc định.
+        """
+        current_icon = super().icon()
+        if current_icon.isNull():
+            return
+
+        # --- FIX 1: Xác định kích thước vẽ (Render Size) ---
+        if size is not None:
+            # Nếu user chỉ định size cụ thể -> Dùng size đó
+            render_size = QSize(size, size)
+        else:
+            # Nếu không chỉ định -> Lấy kích thước THỰC TẾ lớn nhất của ảnh gốc
+            # QSize(1024, 1024) là giới hạn trên để Qt tìm size ảnh gốc to nhất có thể
+            actual_size = current_icon.actualSize(QSize(1024, 1024))
+
+            # Phòng trường hợp actualSize trả về quá bé (ví dụ icon rỗng),
+            # ta lấy max giữa nó và iconSize hiện tại của nút
+            current_btn_size = self.iconSize()
+            render_size = QSize(
+                max(actual_size.width(), current_btn_size.width()),
+                max(actual_size.height(), current_btn_size.height()),
+            )
+
+        # 3. Trích xuất Pixmap từ Icon ở kích thước đã tính
+        src_pixmap = current_icon.pixmap(render_size)
+
+        if src_pixmap.isNull():
+            return
+
+        # 4. Tạo canvas vẽ
+        dest_pixmap = QPixmap(render_size)
+        dest_pixmap.fill(Qt.GlobalColor.transparent)
+
+        # 5. Tô màu (Masking)
+        painter = QPainter(dest_pixmap)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
+
+        painter.drawPixmap(0, 0, src_pixmap)
+        painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceIn)
+        painter.fillRect(dest_pixmap.rect(), QColor(color))
+        painter.end()
+
+        # 6. Cập nhật Icon mới
+        new_icon = QIcon(dest_pixmap)
+
+        super().setIcon(new_icon)
+
+        # --- FIX 2: Chỉ đổi kích thước hiển thị của nút NẾU user truyền tham số size ---
+        # Nếu size=None, ta chỉ đổi màu ảnh, còn kích thước hiển thị giữ nguyên như cũ
+        if size is not None:
+            self.setIconSize(render_size)
+
+
+class LoadingButton(CustomButton):
+    def __init__(
+        self,
+        text="",
+        parent=None,
+        default_enabled=True,
+        is_bold: bool = True,
+        font_size: int | None = None,
+        fixed_height: int | None = None,
+        fixed_width: int | None = None,
+        # --- Tham số mới cho Loading ---
+        loader_color: str = "#000000",  # Màu mặc định của dots (trắng cho nút màu đậm)
+        loader_size: int = 10,  # Kích thước dot nhỏ gọn cho nút
+    ):
+        super().__init__(
+            text, parent, default_enabled, is_bold, font_size, fixed_height, fixed_width
+        )
+
+        # Khởi tạo state trước (để tránh lỗi khi setEnabled gọi) ---
+        self._is_loading = False
+        self._original_text = text
+        self._original_icon = self.icon()
+
+        # Tạo layout để căn giữa loader
+        self._layout = QHBoxLayout(self)
+        self._layout.setContentsMargins(0, 0, 0, 0)
+        self._layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        # Khởi tạo LoadingDots (ẩn mặc định)
+        self._loader = LoadingDots(
+            parent=self,
+            dot_count=3,
+            dot_size=loader_size,
+            color=loader_color,
+            spacing=4,  # Khoảng cách nhỏ lại cho vừa nút
+        )
+        self._loader.hide()  # Quan trọng: Phải ẩn lúc đầu
+
+        # Thêm vào layout
+        self._layout.addWidget(self._loader)
+
+    # --- Các method cũ ---
+    def setEnabled(self, enabled: bool) -> None:
+        # Nếu đang loading thì không cho phép enable lại (tránh logic sai)
+        if getattr(self, "_is_loading", False) and enabled:
+            return
+
+        super().setEnabled(enabled)
+
+    def setIcon(self, icon: QIcon | QPixmap) -> None:
+        if not self._is_loading:
+            self._original_icon = icon
+        return super().setIcon(icon)
 
     # --- 3. Method mới để điều khiển Loading ---
     def start_loading(self):

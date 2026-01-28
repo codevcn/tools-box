@@ -2,6 +2,7 @@ Tree view of: D:\D-Documents\TOOLs\gdrive-tool\sync-with-gdrive
 
 ├── app
 │   ├── dev
+│   ├── metadata
 │   └── src
 │       ├── assets
 │       │   ├── images
@@ -88,7 +89,6 @@ Tree view of: D:\D-Documents\TOOLs\gdrive-tool\sync-with-gdrive
 ├── add_sync_with_gdrive.reg
 ├── AGENTS.md
 ├── app_logo.ico
-├── app_logo.svg
 ├── build.cmd
 ├── CHANGELOG.md
 ├── dev.cmd

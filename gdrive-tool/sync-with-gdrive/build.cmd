@@ -31,6 +31,8 @@ pyinstaller ^
   --onedir ^
   --name SynRive ^
   --noconsole ^
+  --icon "app_logo.ico" ^
+  --version-file app/metadata/version_info.txt ^
   --add-binary "app\build\bin\rclone.exe;." ^
   run_app.py
 
@@ -64,10 +66,24 @@ if not exist "%SRC_DIR%" (
 
 REM Xóa thư mục test cũ
 if exist "%DST_DIR%" (
+  del /f /q "%DST_DIR%\SynRive.exe"
   rmdir /s /q "%DST_DIR%" 2>nul
   echo.
   echo [INFO] Deleted old test dir: "%DST_DIR%"
 )
+
+REM ================================
+REM  Resolve & log copy paths
+REM ================================
+for %%I in ("%SRC_DIR%") do set "SRC_DIR_ABS=%%~fI"
+for %%I in ("%DST_DIR%") do set "DST_DIR_ABS=%%~fI"
+
+echo.
+echo ================================
+echo  COPY BUILD OUTPUT
+echo  From: %SRC_DIR_ABS%
+echo  To  : %DST_DIR_ABS%
+echo ================================
 
 REM Copy bằng robocopy
 robocopy "%SRC_DIR%" "%DST_DIR%" /MIR /R:2 /W:1 /NFL /NDL /NJH /NJS

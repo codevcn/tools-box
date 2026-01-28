@@ -15,7 +15,7 @@ from .workers.sync_worker import SyncProgressData
 from .components.label import CustomLabel
 from .components.button import CustomButton
 from .mixins.keyboard_shortcuts import KeyboardShortcutsDialogMixin
-from .components.overlay import CenteredOverlay
+from .components.overlay import PositionedOverlay
 
 
 class SyncProgressItem(QFrame):
@@ -162,7 +162,7 @@ class SyncProgressDialog(KeyboardShortcutsDialogMixin):
 
         empty_text = CustomLabel("Bắt đầu đồng bộ...", font_size=14)
         empty_text.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.empty_text_overlay = CenteredOverlay(
+        self.empty_text_overlay = PositionedOverlay(
             self.list_widget.viewport(), empty_text
         )
 

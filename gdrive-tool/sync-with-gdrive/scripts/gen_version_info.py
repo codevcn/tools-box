@@ -3,16 +3,26 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+# --- Project root (scripts/ -> root) ---
 ROOT = Path(__file__).resolve().parents[1]
+
+# --- Source metadata ---
 APP_INIT = ROOT / "app" / "src" / "__init__.py"
-OUT_FILE = ROOT / "build" / "version_info.txt"
+
+# --- Output metadata ---
+OUT_DIR = ROOT / "app" / "metadata"
+OUT_FILE = OUT_DIR / "version_info.txt"
 
 
 def read_meta(init_py: Path) -> dict[str, str]:
     text = init_py.read_text(encoding="utf-8")
 
     def pick(name: str, default: str = "") -> str:
-        m = re.search(rf'^{name}\s*=\s*["\'](.+?)["\']\s*$', text, flags=re.M)
+        m = re.search(
+            rf'^{name}\s*=\s*["\'](.+?)["\']\s*$',
+            text,
+            flags=re.M,
+        )
         return m.group(1) if m else default
 
     return {
@@ -35,7 +45,7 @@ def parse_semver(v: str) -> tuple[int, int, int]:
 
 def render_version_info(meta: dict[str, str]) -> str:
     major, minor, patch = parse_semver(meta["version"])
-    # Windows wants 4-part tuple; we keep the 4th as 0
+
     return f"""VSVersionInfo(
   ffi=FixedFileInfo(
     filevers=({major},{minor},{patch},0),
@@ -69,10 +79,14 @@ def render_version_info(meta: dict[str, str]) -> str:
 
 def main() -> None:
     meta = read_meta(APP_INIT)
-    OUT_FILE.parent.mkdir(parents=True, exist_ok=True)
+
+    # đảm bảo app/metadata tồn tại
+    OUT_DIR.mkdir(parents=True, exist_ok=True)
+
     OUT_FILE.write_text(render_version_info(meta), encoding="utf-8")
-    print(f"Wrote: {OUT_FILE}")
-    print(f"Version: {meta['version']}")
+
+    print(f"✅ Wrote: {OUT_FILE}")
+    print(f"🔖 Version: {meta['version']}")
 
 
 if __name__ == "__main__":
