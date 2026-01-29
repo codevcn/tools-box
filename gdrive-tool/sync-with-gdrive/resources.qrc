@@ -24,6 +24,7 @@
     <file alias="markdown_icon.svg">app/src/assets/images/svg/markdown_icon.svg</file>
     <file alias="pdf_icon.svg">app/src/assets/images/svg/pdf_icon.svg</file>
     <file alias="ppt_icon.svg">app/src/assets/images/svg/ppt_icon.svg</file>
+    <file alias="refresh_icon.svg">app/src/assets/images/svg/refresh_icon.svg</file>
     <file alias="settings_icon.svg">app/src/assets/images/svg/settings_icon.svg</file>
     <file alias="txt_icon.svg">app/src/assets/images/svg/txt_icon.svg</file>
     <file alias="video_icon.svg">app/src/assets/images/svg/video_icon.svg</file>

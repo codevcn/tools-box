@@ -7,9 +7,10 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 from PySide6.QtCore import Qt, QSize, Signal
+from .data.rclone_configs_manager import RCloneConfigManager
 from .components.announcement import CustomAnnounce
 from .data.data_manager import UserDataManager
-from .utils.helpers import get_svg_as_icon, rclone_executable_path
+from .utils.helpers import get_svg_as_icon
 from .configs.configs import ThemeColors
 from .components.label import AutoHeightLabel, CustomLabel
 from PySide6.QtGui import QFontMetrics
@@ -34,7 +35,7 @@ class LoginGDriveScreen(KeyboardShortcutsDialogMixin):
         self._remote_name_input: QLineEdit
         self._action_button: CustomButton
         self._rclone_setup: RcloneDriveSetup = RcloneDriveSetup(
-            rclone_exe=rclone_executable_path(), parent=self
+            rclone_exe=RCloneConfigManager.rclone_executable_path(), parent=self
         )
         self._rclone_setup.log.connect(self._on_login_log)
         self._rclone_setup.done.connect(self._on_login_done)
@@ -222,19 +223,11 @@ class LoginGDriveScreen(KeyboardShortcutsDialogMixin):
             self.login_result.emit(LoginResult.SUCCESS, self._pending_remote_name, "")
             self.accept()
         else:
-            popup = CustomAnnounce(
+            CustomAnnounce.warn(
                 self,
                 title="Lỗi",
-                text=msg,
-                icon_pixmap=get_svg_as_icon(
-                    "warn_icon",
-                    35,
-                    None,
-                    "#ff0000",
-                    margins=(0, 0, 8, 0),
-                ),
+                message=msg,
             )
-            popup.exec_and_get()
         print(
             f">>> rclone done: ok={ok}, remote={self._pending_remote_name}, msg={msg}"
         )
@@ -248,19 +241,11 @@ class LoginGDriveScreen(KeyboardShortcutsDialogMixin):
         self._pending_remote_name = self._remote_name_input.text().strip()
 
         if not self._pending_remote_name:
-            popup = CustomAnnounce(
+            CustomAnnounce.warn(
                 self,
                 title="Lỗi",
-                text="Vui lòng nhập tên kho lưu trữ trước khi đăng nhập.",
-                icon_pixmap=get_svg_as_icon(
-                    "warn_icon",
-                    35,
-                    None,
-                    "#ff0000",
-                    margins=(0, 0, 8, 0),
-                ),
+                message="Vui lòng nhập tên kho lưu trữ trước khi đăng nhập.",
             )
-            popup.exec_and_get()
             return
 
         self._do_login(self._pending_remote_name)

@@ -22,6 +22,7 @@ from .active_remote_info import ActiveRemoteScreen
 from .components.announcement import CustomAnnounce
 from .components.divider import CustomDivider
 from .utils.helpers import (
+    center_window_on_screen,
     detect_content_type_by_file_extension,
     detect_file_extension,
     detect_path_type,
@@ -49,9 +50,11 @@ import os
 import subprocess
 from .components.window_title_bar import CustomWindowTitleBar
 from .mixins.main_window import MainWindowMixin
+from .testing.performance_testing import PerformanceTestingMixin
+from .data.rclone_configs_manager import RCloneConfigManager
 
 
-class MainWindow(MainWindowMixin):
+class MainWindow(PerformanceTestingMixin, MainWindowMixin):
     """Main window cho ứng dụng sync folder."""
 
     def __init__(self, local_paths: list[str]):
@@ -77,15 +80,6 @@ class MainWindow(MainWindowMixin):
         self._settings_dialog: SettingsScreen | None = None
         self._copy_log_btn_overlay: PositionedOverlay
         self._setup_ui()
-
-        # Thêm các phím tắt
-        QTimer.singleShot(0, self._add_keyboard_shortcuts)
-        # Chạy animation mở app ngay khi giao diện hiển thị
-        QTimer.singleShot(0, self._animate_open_zoom)
-        # Thiết lập danh sách local paths ban đầu
-        QTimer.singleShot(
-            0, lambda paths=local_paths: self._set_local_paths_list(paths)
-        )
 
     def _set_local_paths_list(self, paths: list[str]) -> None:
         self._local_paths_list = paths
@@ -281,8 +275,16 @@ class MainWindow(MainWindowMixin):
             """
         )
 
+        # Chạy animation mở app ngay khi giao diện hiển thị
+        QTimer.singleShot(0, self._animate_open_zoom)
+        # Thêm các phím tắt
+        QTimer.singleShot(0, self._add_keyboard_shortcuts)
+        # Thiết lập danh sách local paths ban đầu
+        QTimer.singleShot(
+            500, lambda paths=self._local_paths_list: self._set_local_paths_list(paths)
+        )
         # Load saved user data
-        QTimer.singleShot(0, self._load_saved_user_data)
+        QTimer.singleShot(800, self._load_saved_user_data)
 
     def _render_top_menu(self) -> None:
         # Nút Browse local folder (bên trái)
@@ -320,11 +322,15 @@ class MainWindow(MainWindowMixin):
         """Mở file explorer và chọn tệp/thư mục đã đồng bộ."""
         abs_path = os.path.abspath(path)
         if os.path.isfile(abs_path):
-            # Mở explorer và select file
-            subprocess.run(["explorer", "/select,", abs_path])
+            QProcess.startDetached(
+                "explorer",
+                ["/select,", abs_path],
+            )
         elif os.path.isdir(abs_path):
-            # Mở explorer tại folder
-            subprocess.run(["explorer", abs_path])
+            QProcess.startDetached(
+                "explorer",
+                [abs_path],
+            )
         else:
             raise FileNotFoundError(f"Path không tồn tại: {abs_path}")
 
@@ -675,34 +681,18 @@ class MainWindow(MainWindowMixin):
         # Validate inputs
         is_valid, error_msg, err_type = self._validate_inputs()
         if err_type == SyncError.NEED_LOGIN:
-            popup = CustomAnnounce(
+            CustomAnnounce.info(
                 self,
                 title="Yêu cầu đăng nhập",
-                text=error_msg,
-                icon_pixmap=get_svg_as_icon(
-                    "info_icon",
-                    35,
-                    None,
-                    ThemeColors.INFO,
-                    margins=(0, 0, 8, 0),
-                ),
+                message=error_msg,
             )
-            popup.exec_and_get()
             return
         elif not is_valid:
-            popup = CustomAnnounce(
+            CustomAnnounce.warn(
                 self,
                 title="Lỗi",
-                text=error_msg,
-                icon_pixmap=get_svg_as_icon(
-                    "warn_icon",
-                    35,
-                    None,
-                    ThemeColors.WARNING,
-                    margins=(0, 0, 8, 0),
-                ),
+                message=error_msg,
             )
-            popup.exec_and_get()
             return
 
         # Start sync
@@ -756,19 +746,11 @@ class MainWindow(MainWindowMixin):
     def _on_sync_error(self, msg: str) -> None:
         self._is_syncing = False
         self._render_sync_button_section()
-        popup = CustomAnnounce(
+        CustomAnnounce.error(
             self,
             title="Lỗi đồng bộ",
-            text=msg,
-            icon_pixmap=get_svg_as_icon(
-                "error_icon",
-                35,
-                None,
-                "#ff0000",
-                margins=(0, 0, 8, 0),
-            ),
+            message=msg,
         )
-        popup.exec_and_get()
         pass
 
     def _open_settings_screen(self) -> None:
@@ -827,10 +809,14 @@ class MainWindow(MainWindowMixin):
             self._right_actions_layout.addStretch()
             self._right_actions_layout.addWidget(login_btn)
 
-    def _load_saved_user_data(self) -> None:
-        """Tải dữ liệu người dùng đã lưu (nếu có)."""
+    def _ensure_significant_data_initialized(self) -> None:
+        """Đảm bảo dữ liệu quan trọng đã được khởi tạo."""
         if not self._data_manager.check_if_data_inited():
             self._data_manager.init_data_config_file()
+
+    def _load_saved_user_data(self) -> None:
+        """Tải dữ liệu người dùng đã lưu (nếu có)."""
+        self._ensure_significant_data_initialized()
         self._render_user_data(self._data_manager.get_entire_config())
 
 
@@ -873,6 +859,9 @@ def santize_input_paths(local_paths: list[str]) -> list[str]:
 
 def start_app(local_paths: list[str]) -> None:
     """Hàm khởi tạo ứng dụng."""
+    print(">>> Starting application...")
+    RCloneConfigManager.init_rclone_config_path()
+
     app = QApplication(sys.argv)
     font = app.font()
     font.setPointSize(14)
@@ -882,5 +871,6 @@ def start_app(local_paths: list[str]) -> None:
     local_paths = santize_input_paths(local_paths)
 
     window = MainWindow(local_paths)
+    center_window_on_screen(window)
     window.show()
     sys.exit(app.exec())

@@ -9,8 +9,8 @@ from enum import Enum
 from pathlib import Path
 
 from PySide6.QtCore import QObject, Signal, QProcess
-from ..utils.helpers import rclone_executable_path
 from ..data.data_manager import UserDataManager
+from ..data.rclone_configs_manager import RCloneConfigManager
 
 LOG_SPEED_INTERVAL: str = "0.5s"  # Tốc độ lấy log
 
@@ -186,7 +186,7 @@ class RcloneSyncWorker(QObject):
         self.log.emit(f"> Đang thực thi: rclone {cmd}")
         proc = QProcess(self)
         self._process = proc
-        rclone_path = rclone_executable_path()
+        rclone_path = RCloneConfigManager.rclone_executable_path()
         if not Path(rclone_path).exists():
             raise RuntimeError(f"Không tìm thấy rclone.exe: {rclone_path}")
         proc.setProgram(rclone_path)

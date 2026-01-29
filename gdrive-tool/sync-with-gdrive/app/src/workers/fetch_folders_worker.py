@@ -1,8 +1,7 @@
-# src/workers/fetch_folders_worker.py
 from PySide6.QtCore import QThread, Signal
 import subprocess
 import os
-from ..utils.helpers import rclone_executable_path, rclone_config_path
+from ..data.rclone_configs_manager import RCloneConfigManager
 
 
 class FetchFoldersWorker(QThread):
@@ -14,17 +13,17 @@ class FetchFoldersWorker(QThread):
     # Signal gửi dữ liệu về UI: (danh sách folder, thông báo lỗi nếu có)
     data_ready = Signal(list, str)
 
-    def __init__(self, remote_name: str, path: str = ""):
+    def __init__(self, remote_name: str, gdrive_root_path: str = ""):
         super().__init__()
         self.remote_name = remote_name
-        self.path = path  # Mặc định là root ("")
+        self.gdrive_root_path = gdrive_root_path  # Mặc định là root ("")
 
     def run(self):
-        rclone_exe = rclone_executable_path()
-        config_path = rclone_config_path()
+        rclone_exe = RCloneConfigManager.rclone_executable_path()
+        config_path = RCloneConfigManager.rclone_config_path()
 
         # Đường dẫn remote: VD: "gdrive:Photos/"
-        full_remote_path = f"{self.remote_name}:{self.path}"
+        full_remote_path = f"{self.remote_name}:{self.gdrive_root_path}"
 
         cmd = [
             rclone_exe,

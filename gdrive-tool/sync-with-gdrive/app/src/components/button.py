@@ -18,7 +18,7 @@ class CustomButton(QPushButton):
     ):
         super().__init__(text, parent)
 
-        self.setEnabled(bool(default_enabled))
+        self.setEnabled(default_enabled)
 
         font = self.font()
         if is_bold:

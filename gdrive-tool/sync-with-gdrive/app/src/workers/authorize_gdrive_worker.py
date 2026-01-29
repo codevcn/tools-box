@@ -1,6 +1,5 @@
 from PySide6.QtCore import QObject, Signal, QProcess
 from PySide6.QtWidgets import QWidget
-from ..utils.helpers import rclone_config_path
 
 
 class RcloneDriveSetup(QObject):
@@ -26,13 +25,9 @@ class RcloneDriveSetup(QObject):
     def setup_drive_remote(self, remote_name: str, *, scope: str = "drive") -> None:
         # tạo remote (không token)
         # rồi reconnect để rclone tự login + lưu token
-        config = [
-            "--config",
-            str(rclone_config_path()),
-        ]
         self._queue = [
-            config + ["config", "create", remote_name, "drive", f"scope={scope}"],
-            config + ["config", "reconnect", f"{remote_name}:"],
+            ["config", "create", remote_name, "drive", f"scope={scope}"],
+            ["config", "reconnect", f"{remote_name}:"],
         ]
         self._run_next()
 
