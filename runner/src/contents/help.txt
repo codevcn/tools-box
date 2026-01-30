@@ -1,0 +1,54 @@
+===========================================
+# Update at 01/01/2024 6h49 PM
+===========================================
+# Help for runner command:
+
+# Usage:
+runner [[-h] | <type> <action> [[-v value] | [-m "some messages"]]]
+
+# Available flags:
+-h, --help        :print this help.
+-m, --message     :input message for external script.
+-v, --value       :input value for external script.
+
+# Available types:
+open              :to open in system folder.
+print             :to print something.
+run               :to execute something.
+code              :to open in vscode.
+git               :to run git command.
+
+# Available actions:
+## open:
+                  :open runner files in vscode.
+   ws             :open working workspaces in system folder.
+   env            :open enviroment variables in system folder.
+## code:
+                  :open runner files in vscode.
+   test           :open testing folder in vscode.
+   lib            :open lib folder in vscode.
+   ws             :open working workspace in vscode and cd to working folder in CLI.
+   ts-template    :open typescript template in vscode.
+   js             :open testing javascript folder in vscode.
+   nestjs         :open testing nestjs folder in vscode.
+   py             :open testing python folder in vscode.
+   ext            :open extensions folder in vscode.
+## git:
+   commit         :add all files and commit with a message and push with upstream.
+## run:
+   test-bat       :run batch file "test".
+   unikey         :run unikey.
+   list-npm       :list all global npm packages.
+## print:
+   os             :print OS info.
+   stts           :print runner-status description.
+   ws             :print the folder vscode workspace.
+   curl           :print CURD of cURL command.
+   dir            :print path of runner folder in system.
+   cmds           :print some useful commands.
+
+# Example:
+The command `runner open vscode-ws` will open the working workspaces in vscode.
+The command `runner open vscode-ws :ABC` will open the file ABC.code-workspace in vscode.
+The command `runner git commit -m "update git command"` will execute git add all files and commit with a message and push with upstream.
+===========================================

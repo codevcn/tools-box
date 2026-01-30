@@ -1,0 +1,1 @@
+py D:/D-Documents/TOOLs/runner/src/runner.py %*
