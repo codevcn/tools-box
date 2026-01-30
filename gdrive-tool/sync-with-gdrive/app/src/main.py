@@ -85,6 +85,9 @@ class MainWindow(PerformanceTestingMixin, MainWindowMixin):
         self._local_paths_list = paths
         self._update_selected_docs_preview()
 
+    def _set_gdrive_path_input(self, path: str) -> None:
+        self._gdrive_path_input.setText(path)
+
     def _add_keyboard_shortcuts(self) -> None:
         """Bắt sự kiện nhấn các tổ hợp phím."""
         super()._add_keyboard_shortcuts()
@@ -480,6 +483,7 @@ class MainWindow(PerformanceTestingMixin, MainWindowMixin):
         """Mở dialog chọn thư mục trên Google Drive."""
         # Hiện tại chưa hỗ trợ do rclone không có chức năng này
         folders_picker = GDriveFoldersPicker(self)
+        folders_picker.folder_picked.connect(self._on_gdrive_folder_picked)
         folders_picker.exec()
 
     def _create_gdrive_path_section(
@@ -519,7 +523,7 @@ class MainWindow(PerformanceTestingMixin, MainWindowMixin):
         open_gdrive_folders_preview.on_clicked(self._open_gdrive_folders_picker)
 
         if default_base_dir:
-            self._gdrive_path_input.setText(default_base_dir)
+            self._set_gdrive_path_input(default_base_dir)
         self._gdrive_path_input.setPlaceholderText("Thư mục 1/Thư mục 2/Thư mục 3/...")
 
         input_layout.addWidget(self._gdrive_path_input)
@@ -759,6 +763,10 @@ class MainWindow(PerformanceTestingMixin, MainWindowMixin):
             self._settings_dialog = SettingsScreen(self)
         self._settings_dialog.exec()
 
+    def _on_gdrive_folder_picked(self, folder_path: str) -> None:
+        """Xử lý khi người dùng chọn thư mục trên Google Drive từ dialog picker."""
+        self._set_gdrive_path_input(folder_path)
+
     def _render_user_data(self, saved_user_data: UserDataConfigSchema) -> None:
         """Hiển thị dữ liệu sync đã lưu."""
         active_remote = saved_user_data.get("active_remote")
@@ -770,7 +778,7 @@ class MainWindow(PerformanceTestingMixin, MainWindowMixin):
             # Hiển thị nút Settings và gdrive root dir đã lưu (nếu có)
             last_gdrive_entered_dir = saved_user_data.get("last_gdrive_entered_dir")
             if last_gdrive_entered_dir:
-                self._gdrive_path_input.setText(last_gdrive_entered_dir)
+                self._set_gdrive_path_input(last_gdrive_entered_dir)
             settings_btn = CustomButton()
             settings_btn.on_clicked(self._open_settings_screen)
             settings_btn.setIcon(

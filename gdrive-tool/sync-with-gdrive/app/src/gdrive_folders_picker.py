@@ -8,7 +8,7 @@ from PySide6.QtWidgets import (
     QStyle,
     QStackedLayout,
 )
-from PySide6.QtCore import Qt, QSize, QRect
+from PySide6.QtCore import Qt, QSize, Signal, QRect
 from PySide6.QtGui import QIcon, QPainter, QCloseEvent
 from .components.label import CustomLabel
 from .components.announcement import CustomAnnounce
@@ -53,6 +53,8 @@ class GDriveFoldersPicker(KeyboardShortcutsDialogMixin):
     Dialog chọn thư mục Google Drive để đồng bộ.
     """
 
+    folder_picked = Signal(str)  # Signal phát ra folder path khi chọn xong
+
     def __init__(self, parent: QWidget):
         super().__init__(parent)
         self.setWindowTitle("Chọn thư mục Google Drive")
@@ -61,6 +63,11 @@ class GDriveFoldersPicker(KeyboardShortcutsDialogMixin):
         self._data_manager = UserDataManager()
         self._worker = None
         self._current_path = ""  # Đường dẫn hiện tại
+        self._selected_folder_name = ""  # Tên thư mục được chọn
+        self._selected_folder_path: list[str] = (
+            []
+        )  # Đường dẫn đầy đủ của thư mục được chọn bắt đầu từ root của active remote
+        self._folders_are_empty = False
 
         self._setup_ui()
         self._load_data()
@@ -124,6 +131,8 @@ class GDriveFoldersPicker(KeyboardShortcutsDialogMixin):
         )
         # Kích hoạt double click để chọn
         self.list_widget.itemDoubleClicked.connect(self._on_select_folder)
+        # Kích hoạt sự kiện thay đổi lựa chọn (single click)
+        self.list_widget.itemSelectionChanged.connect(self._on_item_selection_changed)
 
         # Add layers vào stack
         self.content_layout.addWidget(loading_container)  # Index 0
@@ -161,6 +170,53 @@ class GDriveFoldersPicker(KeyboardShortcutsDialogMixin):
         main_layout.addLayout(btn_layout)
         self.setStyleSheet("background-color: #1e1e1e; color: white;")
 
+    def _enable_buttons(
+        self, enable_refresh_btn: bool, enable_select_btn: bool
+    ) -> None:
+        """Bật/Tắt nút bấm"""
+        self.btn_refresh.setEnabled(enable_refresh_btn)
+        self.btn_select.setEnabled(enable_select_btn)
+        if enable_refresh_btn:
+            self.btn_refresh.setStyleSheet(
+                f"""
+                background-color: {ThemeColors.GRAY_BACKGROUND};
+                border: 1px solid {ThemeColors.GRAY_BORDER};
+                color: white;
+                padding: 4px 12px 6px;
+                border-radius: 6px;
+                """
+            )
+            self.btn_refresh.update_icon_color("white")
+        else:
+            self.btn_refresh.setStyleSheet(
+                f"""
+                background-color: {ThemeColors.STRONG_GRAY};
+                border: 1px solid {ThemeColors.GRAY_BORDER};
+                color: black;
+                padding: 4px 12px 6px;
+                border-radius: 6px;
+                """
+            )
+            self.btn_refresh.update_icon_color("black")
+        if enable_select_btn:
+            self.btn_select.setStyleSheet(
+                f"""
+                background-color: {ThemeColors.MAIN};
+                color: black;
+                padding: 4px 12px 6px;
+                border-radius: 6px;
+                """
+            )
+        else:
+            self.btn_select.setStyleSheet(
+                f"""
+                background-color: {ThemeColors.STRONG_GRAY};
+                color: black;
+                padding: 4px 12px 6px;
+                border-radius: 6px;
+                """
+            )
+
     def _set_loading_state(self, is_loading: bool):
         """
         Hàm trung tâm quản lý trạng thái UI (Loading vs Finished).
@@ -176,47 +232,12 @@ class GDriveFoldersPicker(KeyboardShortcutsDialogMixin):
             # Hiện Loading, Ẩn List
             self.content_layout.setCurrentIndex(0)
             self.loading_dots.start()
-            self.btn_refresh.setStyleSheet(
-                f"""
-                background-color: {ThemeColors.STRONG_GRAY};
-                border: 1px solid {ThemeColors.GRAY_BORDER};
-                color: black;
-                padding: 4px 12px 6px;
-                border-radius: 6px;
-                """
-            )
-            self.btn_refresh.update_icon_color("black")
-            self.btn_select.setStyleSheet(
-                f"""
-                background-color: {ThemeColors.STRONG_GRAY};
-                border: 1px solid {ThemeColors.GRAY_BORDER};
-                color: black;
-                padding: 4px 12px 6px;
-                border-radius: 6px;
-                """
-            )
+            self._enable_buttons(False, bool(self._selected_folder_name))
         else:
             # Ẩn Loading, Hiện List
             self.loading_dots.stop()
             self.content_layout.setCurrentIndex(1)
-            self.btn_refresh.setStyleSheet(
-                f"""
-                background-color: {ThemeColors.GRAY_BACKGROUND};
-                border: 1px solid {ThemeColors.GRAY_BORDER};
-                color: white;
-                padding: 4px 12px 6px;
-                border-radius: 6px;
-                """
-            )
-            self.btn_refresh.update_icon_color("white")
-            self.btn_select.setStyleSheet(
-                f"""
-                background-color: {ThemeColors.MAIN};
-                color: black;
-                padding: 4px 12px 6px;
-                border-radius: 6px;
-                """
-            )
+            self._enable_buttons(True, bool(self._selected_folder_name))
 
     def _load_data(self):
         """Khởi động worker"""
@@ -266,7 +287,9 @@ class GDriveFoldersPicker(KeyboardShortcutsDialogMixin):
 
         if not folders:
             self.list_widget.addItem("(Thư mục trống)")
+            self._folders_are_empty = True
         else:
+            self._folders_are_empty = False
             pixmap_normal = get_svg_as_icon(
                 "folder_icon",
                 24,
@@ -294,16 +317,41 @@ class GDriveFoldersPicker(KeyboardShortcutsDialogMixin):
 
         self.lbl_info.setText(f"Tìm thấy {len(folders)} thư mục.")
 
+    def _on_item_selection_changed(self):
+        """Xử lý khi người dùng chọn (click) vào một item trong danh sách."""
+        selected_items = self.list_widget.selectedItems()
+        if not selected_items:
+            self._selected_folder_name = ""
+            self._enable_buttons(True, False)
+            return
+
+        item_text = selected_items[0].text()
+
+        # Bỏ qua nếu là item thông báo trống
+        if self._folders_are_empty:
+            self._selected_folder_name = ""
+            self._enable_buttons(True, False)
+            return
+
+        self._selected_folder_name = item_text
+        # Enable nút Select vì đã có thư mục hợp lệ được chọn
+        self._enable_buttons(True, True)
+
     def _on_select_folder(self):
         current_item = self.list_widget.currentItem()
         if current_item:
-            print(f"Đã chọn: {current_item.text()}")
+            print(f">>> Đã chọn folder: {current_item.text()}")
             # Tại đây bạn có thể emit signal hoặc xử lý logic lưu config
+            self.on_folder_picked(current_item.text())
             self.accept()
         else:
             CustomAnnounce.warn(
                 self, "Thông báo", "Vui lòng chọn một thư mục trong danh sách."
             )
+
+    def on_folder_picked(self, folder_name: str):
+        """Hàm gọi khi folder được chọn xong"""
+        self.folder_picked.emit(folder_name)
 
     def closeEvent(self, event: QCloseEvent):
         """Đảm bảo worker dừng chạy khi đóng cửa sổ"""

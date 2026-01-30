@@ -1,15 +1,23 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Callable, Optional, Dict
+from typing import Callable, Optional, Dict, cast, Tuple
 
-from PySide6.QtCore import Signal
-from PySide6.QtGui import QIcon, QPixmap
-from PySide6.QtWidgets import QMessageBox, QPushButton, QWidget, QLabel, QApplication
+from PySide6.QtCore import Signal, QObject, Qt, QTimer
+from PySide6.QtGui import QIcon, QPixmap, QKeySequence, QShortcut
+from PySide6.QtWidgets import (
+    QMessageBox,
+    QPushButton,
+    QWidget,
+    QLabel,
+    QApplication,
+    QScrollArea,
+    QVBoxLayout,
+    QGridLayout,
+    QSizePolicy,
+)
 from ..configs.configs import ThemeColors
 from ..utils.helpers import get_svg_as_icon
-from PySide6.QtCore import QTimer
-from ..mixins.keyboard_shortcuts import KeyboardShortcutsAnnounceMixin
 
 
 @dataclass(frozen=True)
@@ -22,13 +30,14 @@ class DialogButtonSpec:
     closes: bool = True  # True: auto close popup after click
 
 
-class CustomAnnounce(KeyboardShortcutsAnnounceMixin):
+class CustomAnnounce(QObject):
     """
     Wrapper cho QMessageBox để:
     - Custom buttons (text/icon/role)
     - Gắn logic riêng khi nhấn
     - Hỗ trợ block (exec) và non-block (open)
     - Hỗ trợ nút Copy nội dung nhanh
+    - Hỗ trợ cuộn nội dung với kích thước cố định (500x400)
     """
 
     finished = Signal(str)  # emit button key khi popup đóng bằng 1 button
@@ -44,7 +53,7 @@ class CustomAnnounce(KeyboardShortcutsAnnounceMixin):
         icon: QMessageBox.Icon = QMessageBox.Icon.NoIcon,
         icon_pixmap: QPixmap | None = None,
         stylesheet: str | None = None,
-        with_copy_btn: bool = True,  # <--- Tham số mới
+        with_copy_btn: bool = True,
     ) -> None:
         super().__init__(parent)
 
@@ -65,6 +74,7 @@ class CustomAnnounce(KeyboardShortcutsAnnounceMixin):
         if stylesheet:
             self._msg_box.setStyleSheet(stylesheet)
 
+        # Custom layout sau khi đã set text
         self._customize_layout()
 
         self._buttons: Dict[str, QPushButton] = {}
@@ -73,14 +83,12 @@ class CustomAnnounce(KeyboardShortcutsAnnounceMixin):
 
         # --- Logic thêm nút Copy ---
         if with_copy_btn:
-            # Thêm lại nút OK (Để đóng popup)
-            # Vì khi đã add 1 nút custom, Qt sẽ bỏ nút OK mặc định đi
             self.add_button(
                 DialogButtonSpec(
                     key="default_ok_btn",
                     text="OK",
                     role=QMessageBox.ButtonRole.AcceptRole,
-                    closes=True,  # Nút này sẽ đóng popup
+                    closes=True,
                 )
             )
 
@@ -90,21 +98,20 @@ class CustomAnnounce(KeyboardShortcutsAnnounceMixin):
                     text="Copy",
                     role=QMessageBox.ButtonRole.ActionRole,
                     on_click=self._copy_content,
-                    closes=False,  # Không đóng popup khi nhấn Copy
+                    closes=False,
                 )
             )
 
-        # Nếu user đóng bằng X, treat như cancel (nếu có)
         self._msg_box.rejected.connect(self._on_rejected)
+        self._add_keyboard_shortcuts()
+
+    def _add_keyboard_shortcuts(self):
+        for seq in ["Ctrl+Q", "Alt+Q"]:
+            shortcut = QShortcut(QKeySequence(seq), self._msg_box)
+            shortcut.activated.connect(self._msg_box.close)
 
     def _copy_content(self) -> None:
-        """
-        Copy nội dung thông báo vào clipboard theo định dạng:
-        Message: ... , Informative Text: ... , Detailed Text: ...
-        """
         parts = []
-
-        # Lấy text và loại bỏ khoảng trắng thừa nếu cần
         msg = self._msg_box.text()
         info = self._msg_box.informativeText()
         detail = self._msg_box.detailedText()
@@ -116,38 +123,99 @@ class CustomAnnounce(KeyboardShortcutsAnnounceMixin):
         if detail:
             parts.append(f"Detailed Text: {detail}")
 
-        # Nối lại bằng dấu phẩy theo yêu cầu
         final_text = " , ".join(parts)
 
-        # Set vào clipboard
         clipboard = QApplication.clipboard()
         if clipboard:
             clipboard.setText(final_text)
-
-            # (Tùy chọn) Feedback nhẹ cho người dùng biết đã copy
             btn = self.button("internal_copy_btn")
             if btn:
                 original_text = btn.text()
                 btn.setText("Copied!")
-                # Reset lại text sau 1s (dùng QTimer nếu muốn, ở đây để đơn giản giữ nguyên hoặc user tự đóng)
                 QTimer.singleShot(1000, lambda: btn.setText(original_text))
 
     def _customize_layout(self) -> None:
         """
-        Can thiệp vào layout lưới (GridLayout) của QMessageBox
-        để đẩy cả Icon và Text lên sát lề trên cùng.
+        Tìm label chứa nội dung chính và bọc nó vào QScrollArea
+        với kích thước cố định: Rộng 500px, Cao 400px.
         """
         layout = self._msg_box.layout()
-        if layout:
-            layout.setContentsMargins(8, 8, 8, 8)
-            layout.setSpacing(0)
-            # Duyệt qua các item trong layout (Icon label, Text label)
-            for i in range(layout.count()):
-                item = layout.itemAt(i)
-                if item:
-                    widget = item.widget()
-                    if widget and isinstance(widget, QLabel):
-                        widget.setContentsMargins(0, 0, 0, 0)
+
+        if not isinstance(layout, QGridLayout):
+            return
+
+        grid_layout = cast(QGridLayout, layout)
+
+        # 1. Tìm Label chứa text chính
+        content_label = None
+        index = -1
+        current_text = self._msg_box.text()
+
+        for i in range(grid_layout.count()):
+            item = grid_layout.itemAt(i)
+            if item and item.widget():
+                w = item.widget()
+                if isinstance(w, QLabel):
+                    if w.text() == current_text:
+                        content_label = w
+                        index = i
+                        break
+
+        if not content_label:
+            return
+
+        # 2. Lấy thông tin vị trí cũ trong Grid
+        position_data = grid_layout.getItemPosition(index)
+        row, col, rowspan, colspan = cast(Tuple[int, int, int, int], position_data)
+
+        # 3. Remove label cũ khỏi layout
+        grid_layout.removeWidget(content_label)
+
+        # 4. Tạo ScrollArea
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setStyleSheet("QScrollArea { border: none; background: transparent; }")
+
+        # --- CẤU HÌNH KÍCH THƯỚC CỐ ĐỊNH ---
+        # Tắt thanh cuộn ngang
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        scroll.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+
+        # Thiết lập kích thước cố định cho vùng nội dung
+        # Popup sẽ tự động to ra để bao bọc vùng này
+        scroll.setFixedWidth(500)
+        scroll.setFixedHeight(400)
+
+        # Policy cố định để tránh bị resize tự động
+        scroll.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+
+        # 5. Tạo Container widget
+        content_container = QWidget()
+        content_container.setStyleSheet("background: transparent;")
+        vbox = QVBoxLayout(content_container)
+        vbox.setContentsMargins(0, 0, 0, 0)
+
+        # Cấu hình label
+        content_label.setWordWrap(True)
+        content_label.setTextInteractionFlags(
+            Qt.TextInteractionFlag.TextSelectableByMouse
+            | Qt.TextInteractionFlag.LinksAccessibleByMouse
+        )
+        content_label.setOpenExternalLinks(True)
+        # Label mở rộng chiều dọc theo nội dung (để scroll hoạt động)
+        content_label.setSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred
+        )
+
+        vbox.addWidget(content_label)
+
+        # Thêm spacer ở dưới để đẩy text lên trên nếu nội dung ngắn (tùy chọn thẩm mỹ)
+        vbox.addStretch()
+
+        scroll.setWidget(content_container)
+
+        # 6. Add ScrollArea vào đúng vị trí cũ
+        grid_layout.addWidget(scroll, row, col, rowspan, colspan)
 
     # -------------------------
     # Core API
@@ -179,16 +247,12 @@ class CustomAnnounce(KeyboardShortcutsAnnounceMixin):
         if spec.icon is not None:
             btn.setIcon(spec.icon)
 
-        # --- FIX QUAN TRỌNG ---
-        # Nếu button được cấu hình không đóng popup (closes=False),
-        # ta PHẢI ngắt signal clicked mặc định của QMessageBox (vốn luôn đóng popup).
         if not spec.closes:
             try:
                 btn.clicked.disconnect()
             except Exception:
                 pass
 
-        # Sau đó mới connect logic của mình
         btn.clicked.connect(lambda: self._handle_button_click(spec.key))
 
         self._buttons[spec.key] = btn
@@ -209,17 +273,10 @@ class CustomAnnounce(KeyboardShortcutsAnnounceMixin):
             self._msg_box.setEscapeButton(btn)
 
     def exec(self) -> None:
-        """
-        Block UI (modal). Trả về key của button đã bấm.
-        Nếu đóng bằng X và không map được -> None.
-        """
         self._result_key = None
         self._msg_box.exec()
 
     def open(self) -> None:
-        """
-        Non-block. Khi bấm button sẽ emit finished(key).
-        """
         self._result_key = None
         self._msg_box.open()
 
@@ -233,26 +290,18 @@ class CustomAnnounce(KeyboardShortcutsAnnounceMixin):
         self._result_key = key
         spec = self._specs.get(key)
 
-        # 1. Chạy logic custom (ví dụ: copy)
         if spec and spec.on_click:
             spec.on_click()
 
-        # 2. Quyết định đóng hay giữ
         if spec is None or spec.closes:
-            # Nếu cần đóng, gọi accept/reject để thoát exec loop
             if spec and spec.role == QMessageBox.ButtonRole.RejectRole:
                 self._msg_box.reject()
             else:
                 self._msg_box.accept()
 
-        # (Nếu closes=False, ta KHÔNG gọi accept/reject,
-        # và do đã disconnect ở add_button nên popup sẽ giữ nguyên)
-
         self.finished.emit(key)
 
     def _on_rejected(self) -> None:
-        # user đóng bằng X (hoặc Esc) mà không qua button click
-        # Nếu có button "cancel" / "close" thì emit nó, không thì emit rỗng
         fallback_key = None
         for k, spec in self._specs.items():
             if spec.role == QMessageBox.ButtonRole.RejectRole:
@@ -273,17 +322,16 @@ class CustomAnnounce(KeyboardShortcutsAnnounceMixin):
         message: str,
         informative_text: str | None = None,
         details_text: str | None = None,
-        with_copy_btn: bool = True,  # <--- Update
+        icon_pixmap: QPixmap | None = None,
+        with_copy_btn: bool = True,
     ) -> None:
-        """
-        Static method để hiển thị nhanh một thông báo cơ bản.
-        """
         dialog = cls(
             parent,
             title=title,
             message=message,
             informative_text=informative_text,
             detailed_text=details_text,
+            icon_pixmap=icon_pixmap,
             with_copy_btn=with_copy_btn,
         )
         dialog.exec()
@@ -296,29 +344,23 @@ class CustomAnnounce(KeyboardShortcutsAnnounceMixin):
         message: str,
         informative_text: str | None = None,
         details_text: str | None = None,
-        with_copy_btn: bool = True,  # <--- Update
+        with_copy_btn: bool = True,
     ) -> None:
-        """
-        Static method hiển thị cảnh báo (Warning).
-        """
-        icon_pixmap = get_svg_as_icon(
-            "warn_icon",
-            35,
-            None,
-            ThemeColors.WARNING,
-            margins=(0, 0, 8, 0),
-        )
-
-        dialog = cls(
+        cls.show_msg_box(
             parent,
             title=title,
             message=message,
             informative_text=informative_text,
-            detailed_text=details_text,
-            icon_pixmap=icon_pixmap,
+            details_text=details_text,
+            icon_pixmap=get_svg_as_icon(
+                "warn_icon",
+                35,
+                None,
+                ThemeColors.WARNING,
+                margins=(0, 0, 0, 0),
+            ),
             with_copy_btn=with_copy_btn,
         )
-        dialog.exec()
 
     @classmethod
     def info(
@@ -328,29 +370,23 @@ class CustomAnnounce(KeyboardShortcutsAnnounceMixin):
         message: str,
         informative_text: str | None = None,
         details_text: str | None = None,
-        with_copy_btn: bool = True,  # <--- Update
+        with_copy_btn: bool = True,
     ) -> None:
-        """
-        Static method hiển thị thông tin (Info).
-        """
-        icon_pixmap = get_svg_as_icon(
-            "info_icon",
-            35,
-            None,
-            ThemeColors.INFO,
-            margins=(0, 0, 8, 0),
-        )
-
-        dialog = cls(
+        cls.show_msg_box(
             parent,
             title=title,
             message=message,
             informative_text=informative_text,
-            detailed_text=details_text,
-            icon_pixmap=icon_pixmap,
+            details_text=details_text,
+            icon_pixmap=get_svg_as_icon(
+                "info_icon",
+                35,
+                None,
+                ThemeColors.INFO,
+                margins=(0, 0, 0, 0),
+            ),
             with_copy_btn=with_copy_btn,
         )
-        dialog.exec()
 
     @classmethod
     def error(
@@ -360,26 +396,20 @@ class CustomAnnounce(KeyboardShortcutsAnnounceMixin):
         message: str,
         informative_text: str | None = None,
         details_text: str | None = None,
-        with_copy_btn: bool = True,  # <--- Update
+        with_copy_btn: bool = True,
     ) -> None:
-        """
-        Static method hiển thị lỗi (Error).
-        """
-        icon_pixmap = get_svg_as_icon(
-            "error_icon",
-            35,
-            None,
-            ThemeColors.ERROR,
-            margins=(0, 0, 8, 0),
-        )
-
-        dialog = cls(
+        cls.show_msg_box(
             parent,
             title=title,
             message=message,
             informative_text=informative_text,
-            detailed_text=details_text,
-            icon_pixmap=icon_pixmap,
+            details_text=details_text,
             with_copy_btn=with_copy_btn,
+            icon_pixmap=get_svg_as_icon(
+                "error_icon",
+                35,
+                None,
+                ThemeColors.ERROR,
+                margins=(0, 0, 0, 0),
+            ),
         )
-        dialog.exec()

@@ -20,7 +20,6 @@ class FetchFoldersWorker(QThread):
 
     def run(self):
         rclone_exe = RCloneConfigManager.rclone_executable_path()
-        config_path = RCloneConfigManager.rclone_config_path()
 
         # Đường dẫn remote: VD: "gdrive:Photos/"
         full_remote_path = f"{self.remote_name}:{self.gdrive_root_path}"
@@ -30,9 +29,15 @@ class FetchFoldersWorker(QThread):
             "lsf",
             full_remote_path,
             "--dirs-only",  # Chỉ lấy thư mục
-            "--config",
-            str(config_path),
+            "--connect-timeout",
+            "10s",  # [OPTIMIZED] Timeout kết nối cho rclone
         ]
+
+        # [OPTIMIZED] Cấu hình ẩn console window triệt để trên Windows
+        startupinfo = None
+        if os.name == "nt":
+            startupinfo = subprocess.STARTUPINFO()
+            startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
 
         try:
             # Dùng subprocess.run để bắt output gọn gàng
@@ -42,6 +47,8 @@ class FetchFoldersWorker(QThread):
                 text=True,
                 encoding="utf-8",
                 creationflags=(subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0),
+                startupinfo=startupinfo,  # [OPTIMIZED] Áp dụng startupinfo
+                timeout=30,  # [OPTIMIZED] Timeout tổng 30s để tránh treo app
             )
 
             if result.returncode == 0:
@@ -56,5 +63,9 @@ class FetchFoldersWorker(QThread):
             else:
                 self.data_ready.emit([], f"Rclone error: {result.stderr}")
 
+        except subprocess.TimeoutExpired:
+            self.data_ready.emit(
+                [], "Quá thời gian chờ phản hồi từ Google Drive (Timeout)."
+            )
         except Exception as e:
             self.data_ready.emit([], str(e))
