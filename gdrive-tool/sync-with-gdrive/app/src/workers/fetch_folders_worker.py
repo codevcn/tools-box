@@ -29,8 +29,6 @@ class FetchFoldersWorker(QThread):
             "lsf",
             full_remote_path,
             "--dirs-only",  # Chỉ lấy thư mục
-            "--connect-timeout",
-            "10s",  # [OPTIMIZED] Timeout kết nối cho rclone
         ]
 
         # [OPTIMIZED] Cấu hình ẩn console window triệt để trên Windows
