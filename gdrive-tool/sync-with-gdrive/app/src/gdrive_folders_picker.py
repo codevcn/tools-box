@@ -7,10 +7,11 @@ from PySide6.QtWidgets import (
     QStyledItemDelegate,
     QStyle,
     QStackedLayout,
-    QHeaderView,
+    QFrame,
+    QSizePolicy,
 )
 from PySide6.QtCore import Qt, QSize, Signal, QRect
-from PySide6.QtGui import QIcon, QPainter, QCloseEvent
+from PySide6.QtGui import QPainter, QCloseEvent
 from .components.label import CustomLabel
 from .components.announcement import CustomAnnounce
 from .mixins.keyboard_shortcuts import KeyboardShortcutsDialogMixin
@@ -82,6 +83,7 @@ class GDriveFoldersPicker(KeyboardShortcutsDialogMixin):
         # State
         self._selected_full_path = ""
         self._loading_nodes = set()  # Track nodes đang loading
+        self._previous_selected_item = None
 
         self._setup_ui()
 
@@ -146,15 +148,31 @@ class GDriveFoldersPicker(KeyboardShortcutsDialogMixin):
                 background-color: {ThemeColors.MAIN};
                 color: black;
             }}
-            /* Mũi tên expand/collapse */
+
+            /* --- MŨI TÊN MẶC ĐỊNH (KHI CHƯA CHỌN) --- */
             QTreeView::branch:has-children:!has-siblings:closed,
             QTreeView::branch:closed:has-children:has-siblings {{
-                border-image: none;
-                image: url(:/icons/right_arrow_icon.svg); 
+                background-color: {ThemeColors.GRAY_BACKGROUND};
+                image: url(:/icons/right_arrow_white_icon.svg);
             }}
             QTreeView::branch:open:has-children:!has-siblings,
             QTreeView::branch:open:has-children:has-siblings {{
-                border-image: none;
+                background-color: {ThemeColors.GRAY_BACKGROUND};
+                image: url(:/icons/down_arrow_white_icon.svg);
+            }}
+
+            /* --- MŨI TÊN KHI DÒNG ĐÓ ĐƯỢC CHỌN (SELECTED) --- */
+            /* Trạng thái đóng khi được chọn */
+            QTreeView::branch:has-children:!has-siblings:closed:selected,
+            QTreeView::branch:closed:has-children:has-siblings:selected {{
+                background-color: {ThemeColors.MAIN};
+                image: url(:/icons/right_arrow_icon.svg);
+            }}
+
+            /* Trạng thái mở khi được chọn */
+            QTreeView::branch:open:has-children:!has-siblings:selected,
+            QTreeView::branch:open:has-children:has-siblings:selected {{
+                background-color: {ThemeColors.MAIN};
                 image: url(:/icons/down_arrow_icon.svg);
             }}
             """
@@ -164,13 +182,39 @@ class GDriveFoldersPicker(KeyboardShortcutsDialogMixin):
         self.tree_widget.itemExpanded.connect(self._on_item_expanded)
         self.tree_widget.itemSelectionChanged.connect(self._on_item_selection_changed)
         # Double click để chọn luôn và đóng
-        self.tree_widget.itemDoubleClicked.connect(self._on_confirm_selection)
+        # self.tree_widget.itemDoubleClicked.connect(self._on_confirm_selection)
 
         self.content_layout.addWidget(loading_container)  # 0
         self.content_layout.addWidget(self.tree_widget)  # 1
         self.content_layout.setCurrentIndex(1)  # Mặc định hiện tree trắng
 
         main_layout.addLayout(self.content_layout)
+
+        # --- HELPER SECTION ---
+        helper_layout = QHBoxLayout()
+        helper_layout.setAlignment(Qt.AlignmentFlag.AlignLeft)
+        helper_layout.setSpacing(4)
+        helper_layout.setContentsMargins(0, 4, 0, 4)
+        self.helper_label = CustomLabel(
+            "Chọn 1 thư mục để bắt đầu...",
+            font_size=12,
+        )
+        self.helper_label.setSizePolicy(
+            QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed
+        )
+        self.helper_label.setStyleSheet("color: white;")
+        self.final_folder_label = CustomLabel(
+            "",
+            font_size=12,
+            is_bold=True,
+        )
+        self.final_folder_label.setSizePolicy(
+            QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed
+        )
+        self.final_folder_label.setStyleSheet("color: #b8b8b8;")
+        helper_layout.addWidget(self.helper_label)
+        helper_layout.addWidget(self.final_folder_label)
+        main_layout.addLayout(helper_layout)
 
         # --- FOOTER SECTION ---
         btn_layout = QHBoxLayout()
@@ -180,6 +224,7 @@ class GDriveFoldersPicker(KeyboardShortcutsDialogMixin):
                 "refresh_icon", 24, stroke_color="black", margins=(0, 0, 4, 0)
             )
         )
+        self.btn_refresh.setIconSize(QSize(24, 24))
         self.btn_refresh.on_clicked(self._load_root_data)
 
         btn_layout.addWidget(self.btn_refresh)
@@ -191,13 +236,11 @@ class GDriveFoldersPicker(KeyboardShortcutsDialogMixin):
                 "double_check_icon", 24, stroke_color="black", margins=(0, 0, 4, 0)
             )
         )
+        self.btn_select.setIconSize(QSize(24, 24))
         self.btn_select.on_clicked(self._on_confirm_selection)
         btn_layout.addWidget(self.btn_select)
 
         main_layout.addLayout(btn_layout)
-
-        # Theme chung
-        self.setStyleSheet("background-color: #1e1e1e; color: white;")
 
         # Init state buttons
         self._enable_buttons(True, False)
@@ -256,6 +299,11 @@ class GDriveFoldersPicker(KeyboardShortcutsDialogMixin):
             return None
         return remote
 
+    def _refresh_data(self):
+        self.helper_label.setText("Chọn 1 thư mục để bắt đầu...")
+        self.final_folder_label.setText("")
+        self._load_root_data()
+
     # --- LOGIC: ROOT FILES ---
     def _load_root_data(self):
         remote_name = self._get_remote_name()
@@ -302,7 +350,7 @@ class GDriveFoldersPicker(KeyboardShortcutsDialogMixin):
         # nếu muốn concurrent, nhưng FetchFoldersWorker là QThread, cần giữ ref.
         # => Tạm thời: cancel worker cũ nếu có (chấp nhận chỉ load 1 cái 1 lúc).
 
-        if self._worker is not None and self._worker.isRunning():
+        if self._worker and self._worker.isRunning():
             self._worker.quit()
             self._worker.wait()
 
@@ -371,7 +419,7 @@ class GDriveFoldersPicker(KeyboardShortcutsDialogMixin):
 
         # Icons
         icon_folder = get_svg_as_icon(
-            "folder_icon", 24, stroke_color="#FFD700", stroke_width=3
+            "folder_icon", 64, stroke_color="#FFD700", stroke_width=3
         )
 
         items_to_add = []
@@ -380,7 +428,7 @@ class GDriveFoldersPicker(KeyboardShortcutsDialogMixin):
             item.setText(0, name)
             item.setIcon(0, icon_folder)
 
-            # Tính full path
+            # .Tính full path
             full_path = f"{parent_path}/{name}" if parent_path else name
             item.setData(0, self.FULL_PATH_ROLE, full_path)
             item.setData(0, self.LOADED_ROLE, False)  # Chưa load con
@@ -420,8 +468,29 @@ class GDriveFoldersPicker(KeyboardShortcutsDialogMixin):
             self._enable_buttons(True, False)
             return
 
+        # 2. Đổi icon của item đang chọn sang màu đen
+        item.setIcon(
+            0,
+            get_svg_as_icon(
+                "folder_icon", 64, stroke_color="black", stroke_width=3
+            ),  # Giả sử bạn có icon này
+        )
+
         self._selected_full_path = item.data(0, self.FULL_PATH_ROLE)
+        self.helper_label.setText("Thư mục đã chọn:")
+        self.final_folder_label.setText(self._selected_full_path)
+
         self._enable_buttons(True, True)
+
+        if self._previous_selected_item:
+            self._previous_selected_item.setIcon(
+                0,
+                get_svg_as_icon(
+                    "folder_icon", 64, stroke_color="#FFD700", stroke_width=3
+                ),  # Giả sử bạn có icon này
+            )
+
+        self._previous_selected_item = item
 
     def _on_confirm_selection(self):
         if self._selected_full_path:
