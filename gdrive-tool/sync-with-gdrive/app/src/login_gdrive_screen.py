@@ -1,3 +1,4 @@
+from PySide6.QtWidgets import QHBoxLayout
 from PySide6.QtWidgets import (
     QVBoxLayout,
     QLineEdit,
@@ -6,10 +7,10 @@ from PySide6.QtWidgets import (
     QLayout,
     QWidget,
 )
-from PySide6.QtCore import Qt, QSize, Signal
+from PySide6.QtCore import Qt, QSize, Signal, QTimer
 from .data.rclone_configs_manager import RCloneConfigManager
 from .components.announcement import CustomAnnounce
-from .data.data_manager import UserDataManager
+from .data.user_data_manager import UserDataManager
 from .utils.helpers import get_svg_as_icon
 from .configs.configs import ThemeColors
 from .components.label import AutoHeightLabel, CustomLabel
@@ -18,6 +19,13 @@ from .components.button import CustomButton
 from .workers.authorize_gdrive_worker import RcloneDriveSetup
 from enum import Enum
 from .mixins.keyboard_shortcuts import KeyboardShortcutsDialogMixin
+from PySide6.QtCore import QRegularExpression
+
+
+def validate_remote_name(remote_name: str) -> bool:
+    # regex pattern: chỉ cho phép các ký tự là chữ cái, số, dấu gạch ngang, dấu gạch dưới, và khoảng trắng
+    pattern = QRegularExpression(r"^[A-Za-z0-9À-ỹ _-]+$")
+    return pattern.match(remote_name).hasMatch()
 
 
 class LoginResult(Enum):
@@ -28,6 +36,7 @@ class LoginResult(Enum):
 
 class LoginGDriveScreen(KeyboardShortcutsDialogMixin):
     login_result = Signal(LoginResult, str, str)  # (result, remote_name, error_msg)
+    login_log = Signal(str)
 
     def __init__(self, parent: QWidget):
         super().__init__(parent)
@@ -56,6 +65,9 @@ class LoginGDriveScreen(KeyboardShortcutsDialogMixin):
             3,
             (0, 0, 8, 0),
         )
+        self._login_timer = QTimer(self)
+        self._login_timer.setSingleShot(True)
+        self._login_timer.timeout.connect(self._on_login_timeout)
         self._setup_ui()
 
     def _setup_ui(self) -> None:
@@ -73,6 +85,8 @@ class LoginGDriveScreen(KeyboardShortcutsDialogMixin):
         main_layout.addWidget(self._create_description_section())
         main_layout.addLayout(self._create_input_section())
         main_layout.addLayout(self._create_action_section())
+
+        self._enable_action_button(False)
 
     def _create_title_section(self) -> CustomLabel:
         """Tạo tiêu đề chính."""
@@ -122,10 +136,9 @@ class LoginGDriveScreen(KeyboardShortcutsDialogMixin):
 
         return frame
 
-    def _handle_input_change(self, text: str) -> None:
-        """Xử lý khi người dùng thay đổi nội dung trong ô nhập."""
-        if text.strip():
-            self._action_button.setEnabled(True)
+    def _enable_action_button(self, enabled: bool) -> None:
+        self._action_button.setEnabled(enabled)
+        if enabled:
             self._action_button.setStyleSheet(
                 f"""
                 CustomButton {{
@@ -144,7 +157,6 @@ class LoginGDriveScreen(KeyboardShortcutsDialogMixin):
             )
             self._action_button.setIcon(self._action_btn_svg_pixmap_enabled)
         else:
-            self._action_button.setEnabled(False)
             self._action_button.setStyleSheet(
                 """
                 CustomButton {
@@ -156,6 +168,13 @@ class LoginGDriveScreen(KeyboardShortcutsDialogMixin):
             """
             )
             self._action_button.setIcon(self._action_btn_svg_pixmap_disabled)
+
+    def _handle_input_change(self, text: str) -> None:
+        """Xử lý khi người dùng thay đổi nội dung trong ô nhập."""
+        if text.strip():
+            self._enable_action_button(True)
+        else:
+            self._enable_action_button(False)
 
     def _create_input_section(self) -> QVBoxLayout:
         """Tạo section nhập tên remote."""
@@ -192,21 +211,39 @@ class LoginGDriveScreen(KeyboardShortcutsDialogMixin):
 
         return layout
 
-    def _create_action_section(self) -> QVBoxLayout:
+    def _create_action_section(self) -> QHBoxLayout:
         """Tạo section với nút hành động."""
-        layout = QVBoxLayout()
+        layout = QHBoxLayout()
 
-        self._action_button = CustomButton("Tiến hành đăng nhập", default_enabled=False)
+        cancel_btn = CustomButton("Hủy", is_bold=True)
+        cancel_btn.setStyleSheet(
+            f"""
+            background-color: {ThemeColors.STRONG_GRAY};
+            color: black;
+            border-radius: 4px;
+        """
+        )
+        # [QUAN TRỌNG] Tắt auto default của nút Hủy để tránh Enter nhầm vào đây
+        cancel_btn.setAutoDefault(False)
+        cancel_btn.setFixedHeight(44)
+        cancel_btn.on_clicked(self.reject)
+        cancel_btn.setIconSize(QSize(30, 30))
+        layout.addWidget(cancel_btn, 4)
+
+        self._action_button = CustomButton(
+            "Tiến hành đăng nhập",
+            default_enabled=False,
+            is_bold=True,
+        )
         self._action_button.setFixedHeight(44)
-        self._action_button.clicked.connect(self._on_login_start)
-        # Style cho nút
+        self._action_button.on_clicked(self._on_login_start)
+        # Set nút này là mặc định khi nhấn Enter
+        self._action_button.setAutoDefault(True)
+        self._action_button.setDefault(True)
         self._handle_input_change("")
         self._action_button.setIconSize(QSize(30, 30))
-        font = self._action_button.font()
-        font.setBold(True)
-        self._action_button.setFont(font)
 
-        layout.addWidget(self._action_button)
+        layout.addWidget(self._action_button, 6)
         return layout
 
     def _do_save_remote_data(self, remote_name: str) -> None:
@@ -215,9 +252,10 @@ class LoginGDriveScreen(KeyboardShortcutsDialogMixin):
         self._data_manager.save_active_remote(remote_name)
 
     def _on_login_log(self, text: str):
-        print(f">>> rclone log: {text}")
+        self.login_log.emit(text)
 
     def _on_login_done(self, ok: bool, msg: str):
+        self._login_timer.stop()
         if ok and self._pending_remote_name:
             self._do_save_remote_data(self._pending_remote_name)
             self.login_result.emit(LoginResult.SUCCESS, self._pending_remote_name, "")
@@ -228,30 +266,61 @@ class LoginGDriveScreen(KeyboardShortcutsDialogMixin):
                 title="Lỗi",
                 message=msg,
             )
-        print(
-            f">>> rclone done: ok={ok}, remote={self._pending_remote_name}, msg={msg}"
-        )
+        self._enable_action_button(True)
 
     def _do_login(self, remote_name: str) -> None:
         """Bắt đầu quá trình đăng nhập Google Drive qua rclone."""
         self._rclone_setup.setup_drive_remote(remote_name, scope="drive")
 
-    def _on_login_start(self) -> None:
-        """Xử lý khi người dùng nhấn nút đăng nhập."""
-        self._pending_remote_name = self._remote_name_input.text().strip()
-
-        if not self._pending_remote_name:
+    def _validate_remote_name(self, remote_name: str) -> bool:
+        if not remote_name:
             CustomAnnounce.warn(
                 self,
                 title="Lỗi",
                 message="Vui lòng nhập tên kho lưu trữ trước khi đăng nhập.",
             )
-            return
+            return False
+        valid = validate_remote_name(remote_name)
+        if not valid:
+            CustomAnnounce.warn(
+                self,
+                title="Lỗi",
+                message="Tên kho lưu trữ chỉ cho phép các ký tự là chữ cái, số, dấu gạch ngang, dấu gạch dưới, và khoảng trắng.",
+            )
+            return False
+        return True
 
-        self._do_login(self._pending_remote_name)
+    def _on_login_start(self) -> None:
+        """Xử lý khi người dùng nhấn nút đăng nhập."""
+        self._pending_remote_name = self._remote_name_input.text().strip()
+
+        if self._validate_remote_name(self._pending_remote_name):
+            self._enable_action_button(False)
+            # self._login_timer.start(600000)  # 10 minute timeout
+            self._login_timer.start(5000)  # 5s timeout for testing
+
+            self._do_login(self._pending_remote_name)
+
+    def _on_login_timeout(self):
+        self._cancel_login("Quá thời gian đăng nhập (10 phút). Vui lòng thử lại sau.")
+
+    def _cancel_login(self, message: str = "") -> None:
+        """Xử lý logic hủy đăng nhập."""
+        self._login_timer.stop()
+        if self._rclone_setup.is_running():
+            self._rclone_setup.cancel_process(wait_ms=1000)
+
+        self._enable_action_button(True)
+        if message:
+            CustomAnnounce.warn(
+                self,
+                title="Đăng nhập không thành công",
+                message=message,
+            )
 
     def closeEvent(self, event):
         """Xử lý khi dialog bị đóng (user nhấn nút đóng)."""
+        self._login_timer.stop()
         if self._rclone_setup.is_running():
-            self._rclone_setup.cancel_process(wait_ms=200)
+            self._rclone_setup.cancel_process(wait_ms=1000)
         event.accept()

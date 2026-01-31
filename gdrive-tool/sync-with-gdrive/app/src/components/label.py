@@ -1,9 +1,13 @@
+from typing import Callable
+from PySide6.QtCore import Signal
 from PySide6.QtWidgets import QLabel, QSizePolicy
 from PySide6.QtGui import QFontMetrics
 from PySide6.QtCore import Qt
 
 
 class CustomLabel(QLabel):
+    is_clicked = Signal()
+
     def __init__(
         self,
         text: str = "",
@@ -33,8 +37,18 @@ class CustomLabel(QLabel):
         font.setPointSize(font_size)
         self.setFont(font)
 
+    def on_clicked(self, callback: Callable):
+        self.is_clicked.connect(callback)
+
+    def mousePressEvent(self, event):
+        if event.button() == Qt.MouseButton.LeftButton:
+            self.is_clicked.emit()
+        super().mousePressEvent(event)
+
 
 class AutoHeightLabel(QLabel):
+    is_clicked = Signal()
+
     def __init__(self, text="", parent=None):
         super().__init__(text, parent)
         self.setWordWrap(True)
@@ -86,3 +100,11 @@ class AutoHeightLabel(QLabel):
         # để tránh vòng lặp resizeEvent vô tận
         if self.height() != new_height:
             self.setFixedHeight(new_height)
+
+    def on_clicked(self, callback: Callable):
+        self.is_clicked.connect(callback)
+
+    def mousePressEvent(self, event):
+        if event.button() == Qt.MouseButton.LeftButton:
+            self.is_clicked.emit()
+        super().mousePressEvent(event)

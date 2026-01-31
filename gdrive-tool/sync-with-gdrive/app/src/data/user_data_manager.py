@@ -5,6 +5,10 @@ from ..utils.helpers import get_json_field_value, set_json_field_value
 from ..utils.helpers import app_data_dir
 
 
+def create_data_config_path() -> Path:
+    return app_data_dir() / "data" / "sync-with-gdrive.json"
+
+
 class UserDataConfigSchema(TypedDict):
     remotes: list[str]
     active_remote: str | None
@@ -14,8 +18,13 @@ class UserDataConfigSchema(TypedDict):
 
 class UserDataManager:
     def __init__(self):
-        self._data_config_path = app_data_dir() / "data" / "sync-with-gdrive.json"
-        self._is_data_inited = False
+        self._data_config_path: Path = create_data_config_path()
+        self._is_data_inited: bool = False
+
+    @staticmethod
+    def get_data_config_path() -> str:
+        """Trả về đường dẫn file cấu hình sync-with-gdrive.json."""
+        return str(create_data_config_path())
 
     def check_if_data_inited(self) -> bool:
         """
@@ -28,7 +37,7 @@ class UserDataManager:
 
     def init_data_config_file(self) -> None:
         """Khởi tạo file cấu hình sync-with-gdrive.json nếu chưa tồn tại."""
-        path = Path(self._data_config_path)
+        path = self._data_config_path
 
         # 1. Đảm bảo thư mục cha tồn tại
         path.parent.mkdir(parents=True, exist_ok=True)

@@ -1,3 +1,6 @@
+from app.src.components.announcement import CustomAnnounce
+from .data.rclone_configs_manager import RCloneConfigManager
+from .data.user_data_manager import UserDataManager
 from PySide6.QtWidgets import (
     QWidget,
     QHBoxLayout,
@@ -15,10 +18,12 @@ from .components.button import CustomButton
 from .configs.configs import ThemeColors
 from .utils.helpers import get_svg_as_icon
 from .__init__ import __app_name__, __version__
+import os
+from PySide6.QtCore import QProcess
 
 
-class KeyboardShortcutsSection(QFrame):
-    """Widget hiển thị danh sách phím tắt theo sections"""
+class KeyboardShortcutsPage(QFrame):
+    """Page hiển thị danh sách phím tắt theo sections"""
 
     def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)
@@ -123,8 +128,73 @@ class KeyboardShortcutsSection(QFrame):
         return item
 
 
-class AboutSection(QFrame):
-    """Section hiển thị thông tin About của app."""
+class StoredDataPage(QFrame):
+    """
+    Page hiển thị thông tin dữ liệu lưu trữ của app.
+    Gồm:
+        - sync-with-gdrive.json
+        - rclone.conf
+    """
+
+    def __init__(self, parent: QWidget | None = None):
+        super().__init__(parent)
+        self._setup_ui()
+
+    def _setup_ui(self):
+        self.setStyleSheet("background-color: #1e1e1e;")
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(12)
+
+        sync_with_gdrive_json_layout = QHBoxLayout()
+        sync_with_gdrive_json_layout.setContentsMargins(0, 0, 0, 0)
+        sync_with_gdrive_json_layout.setSpacing(8)
+        sync_with_gdrive_json_label = CustomLabel(
+            "sync-with-gdrive.json:", font_size=14
+        )
+        sync_with_gdrive_json_label.setStyleSheet("color: white;")
+        sync_with_gdrive_json_btn = CustomLabel(
+            UserDataManager.get_data_config_path(), is_word_wrap=True
+        )
+        sync_with_gdrive_json_btn.on_clicked(
+            lambda: self._open_file(UserDataManager.get_data_config_path())
+        )
+        sync_with_gdrive_json_layout.addWidget(sync_with_gdrive_json_label)
+        sync_with_gdrive_json_layout.addWidget(sync_with_gdrive_json_btn)
+
+        rclone_conf_layout = QHBoxLayout()
+        rclone_conf_layout.setContentsMargins(0, 0, 0, 0)
+        rclone_conf_layout.setSpacing(8)
+        rclone_conf_label = CustomLabel("rclone.conf:", font_size=14)
+        rclone_conf_label.setStyleSheet("color: white;")
+        rclone_conf_btn = CustomLabel(
+            RCloneConfigManager.get_config_path(), is_word_wrap=True
+        )
+        rclone_conf_btn.on_clicked(
+            lambda: self._open_file(RCloneConfigManager.get_config_path())
+        )
+        rclone_conf_layout.addWidget(rclone_conf_label)
+        rclone_conf_layout.addWidget(rclone_conf_btn)
+
+        layout.addLayout(sync_with_gdrive_json_layout)
+        layout.addLayout(rclone_conf_layout)
+
+    def _open_file(self, file_path: str):
+        abs_path = os.path.abspath(file_path)
+        if os.path.isfile(abs_path):
+            QProcess.startDetached(
+                "explorer",
+                ["/select,", abs_path],
+            )
+        else:
+            CustomAnnounce.warn(
+                self, title="Lỗi", message=f"Path không tồn tại: {abs_path}"
+            )
+
+
+class AboutPage(QFrame):
+    """Page hiển thị thông tin About của app."""
 
     def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)
@@ -207,13 +277,13 @@ class MenuButton(CustomButton):
                 #MenuButtonRoot {{
                     background-color: {ThemeColors.GRAY_BACKGROUND};
                     color: white;
-                    border: none;
+                    border: 1px solid {ThemeColors.GRAY_BORDER};
                     border-radius: 6px;
                     text-align: left;
                     padding-left: 16px;
                 }}
                 #MenuButtonRoot:hover {{
-                    background-color: rgba(255, 255, 255, 10);
+                    background-color: rgba(255, 255, 255, 30);
                 }}
             """
             )
@@ -225,13 +295,13 @@ class SettingsScreen(KeyboardShortcutsDialogMixin):
 
     def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)
-        self.setWindowTitle("Cài đặt")
-        self.resize(800, 500)
         self._menu_buttons: list[MenuButton] = []
         self._setup_ui()
 
     def _setup_ui(self):
         """Thiết lập giao diện"""
+        self.setWindowTitle("Cài đặt")
+        self.setFixedSize(800, 500)
         self.setObjectName("SettingsScreenRoot")
         self.setStyleSheet(
             f"""
@@ -287,8 +357,9 @@ class SettingsScreen(KeyboardShortcutsDialogMixin):
         self._content_stack = QStackedWidget()
 
         # Thêm các page vào stack
-        self._content_stack.addWidget(KeyboardShortcutsSection())  # Index 0: Phím tắt
-        self._content_stack.addWidget(AboutSection())  # Index 1: About
+        self._content_stack.addWidget(KeyboardShortcutsPage())  # Index 0: Phím tắt
+        self._content_stack.addWidget(StoredDataPage())  # Index 1: Stored Data
+        self._content_stack.addWidget(AboutPage())  # Index 2: About
 
         main_layout.addWidget(self._content_stack, 1)
 
@@ -299,7 +370,7 @@ class SettingsScreen(KeyboardShortcutsDialogMixin):
         """Tạo sidebar menu"""
         sidebar = QFrame()
         sidebar.setObjectName("MenuSideBarRoot")
-        sidebar.setFixedWidth(200)
+        sidebar.setFixedWidth(220)
         sidebar.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Expanding)
 
         layout = QVBoxLayout(sidebar)
@@ -342,15 +413,25 @@ class SettingsScreen(KeyboardShortcutsDialogMixin):
         keyboard_btn.on_clicked(lambda: self._switch_page(0))
         self._menu_buttons.append(keyboard_btn)
 
+        # Dữ liệu lưu trữ
+        stored_data_btn = MenuButton(
+            "Dữ liệu lưu trữ",
+            get_svg_as_icon("data_icon", 26, None, None, 3, (0, 0, 8, 0)),
+        )
+        stored_data_btn.setIconSize(QSize(26, 26))
+        stored_data_btn.on_clicked(lambda: self._switch_page(1))
+        self._menu_buttons.append(stored_data_btn)
+
+        # About
         about_btn = MenuButton(
             "About",
             get_svg_as_icon("info_icon", 26, None, None, 3, (0, 0, 8, 0)),
         )
         about_btn.setIconSize(QSize(26, 26))
-        about_btn.on_clicked(lambda: self._switch_page(1))
+        about_btn.on_clicked(lambda: self._switch_page(2))
         self._menu_buttons.append(about_btn)
 
-        return [keyboard_btn, about_btn]
+        return [keyboard_btn, stored_data_btn, about_btn]
 
     def _switch_page(self, index: int):
         """Chuyển đổi giữa các page"""

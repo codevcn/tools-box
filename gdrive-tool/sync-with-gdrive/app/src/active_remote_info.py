@@ -1,3 +1,4 @@
+from typing import Callable
 from PySide6.QtWidgets import (
     QVBoxLayout,
     QScrollArea,
@@ -9,7 +10,7 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt, Signal, QSize
 from PySide6.QtGui import QCursor
 from .components.button import CustomButton
-from .data.data_manager import UserDataManager
+from .data.user_data_manager import UserDataManager
 from .utils.helpers import get_svg_as_icon
 from .configs.configs import ThemeColors
 from .components.label import CustomLabel
@@ -83,6 +84,7 @@ class ActiveRemoteScreen(KeyboardShortcutsDialogMixin):
     """Window hiển thị danh sách remotes để chọn"""
 
     remote_selected = Signal(str)  # Emit khi user chọn remote
+    add_remote_requested = Signal()  # Emit khi user muốn thêm remote
 
     def __init__(self, parent: QWidget):
         super().__init__(parent)
@@ -94,6 +96,41 @@ class ActiveRemoteScreen(KeyboardShortcutsDialogMixin):
     def _setup_ui(self):
         self.setWindowTitle("Chọn Kho Lưu Trữ")
         self.resize(600, 450)
+        self.setStyleSheet(
+            f"""
+            QDialog {{
+                background-color: {ThemeColors.GRAY_BACKGROUND};
+            }}
+            QScrollArea {{
+                border: none;
+                background-color: {ThemeColors.GRAY_BACKGROUND};
+            }}
+            QScrollBar:vertical {{
+                background-color: {ThemeColors.GRAY_BACKGROUND};
+                width: 12px;
+                border-radius: 6px;
+            }}
+            QScrollBar::handle:vertical {{
+                background-color: #4d4d4d;
+                border-radius: 6px;
+                min-height: 30px;
+            }}
+            QScrollBar::handle:vertical:hover {{
+                background-color: #5d5d5d;
+            }}
+            #OkButton {{
+                background-color: {ThemeColors.STRONG_GRAY};
+                color: black;
+                border-radius: 8px;
+            }}
+            #AddRemoteBtn {{
+                background-color: {ThemeColors.MAIN};
+                color: black;
+                border-radius: 8px;
+                padding: 6px 12px;
+            }}
+        """
+        )
 
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(0, 0, 0, 0)
@@ -125,32 +162,11 @@ class ActiveRemoteScreen(KeyboardShortcutsDialogMixin):
         subtitle_label.set_font_size(14)
         title_layout.addWidget(subtitle_label)
 
-        main_layout.addWidget(title_section)
-
         # Scrollable area for remotes
         scroll_area = QScrollArea()
         scroll_area.setWidgetResizable(True)
-        scroll_area.setStyleSheet(
-            """
-            QScrollArea {
-                border: none;
-                background-color: #2d2d2d;
-            }
-            QScrollBar:vertical {
-                background-color: #2d2d2d;
-                width: 12px;
-                border-radius: 6px;
-            }
-            QScrollBar::handle:vertical {
-                background-color: #4d4d4d;
-                border-radius: 6px;
-                min-height: 30px;
-            }
-            QScrollBar::handle:vertical:hover {
-                background-color: #5d5d5d;
-            }
-        """
-        )
+        scroll_area_layout = QVBoxLayout()
+        scroll_area_layout.addWidget(scroll_area)
 
         # Container widget for remotes
         remotes_container = QFrame()
@@ -158,39 +174,41 @@ class ActiveRemoteScreen(KeyboardShortcutsDialogMixin):
         self._remotes_layout.setContentsMargins(8, 8, 8, 8)
         self._remotes_layout.setSpacing(8)
 
+        # Add remote button
+        add_remote_btn = CustomButton("Thêm kho lưu trữ")
+        add_remote_btn.setIcon(
+            get_svg_as_icon("plus_icon", 26, None, "#000000", 2, margins=(0, 0, 6, 0))
+        )
+        add_remote_btn.setIconSize(QSize(26, 26))
+        add_remote_btn.setObjectName("AddRemoteBtn")
+        add_remote_btn.on_clicked(self._add_remote)
+        add_remote_btn_layout = QHBoxLayout()
+        add_remote_btn_layout.setContentsMargins(8, 8, 8, 8)
+        add_remote_btn_layout.addWidget(add_remote_btn)
+
         # OK button
         ok_btn_layout = QHBoxLayout()
         ok_btn_layout.setContentsMargins(8, 0, 8, 8)
         ok_btn_layout.setSpacing(8)
         ok_button = CustomButton("Đóng", font_size=16, is_bold=True, fixed_height=40)
-        ok_button.setIcon(
-            get_svg_as_icon("check_icon", 26, None, "black", 3, margins=(0, 0, 8, 0))
-        )
-        ok_button.setIconSize(QSize(26, 26))
+        ok_button.setObjectName("OkButton")
         ok_button.on_clicked(self.accept)
-        ok_button.setStyleSheet(
-            f"""
-            CustomButton {{
-                background-color: {ThemeColors.MAIN};
-                color: black;
-                border-radius: 8px;
-            }}
-        """
-        )
         ok_btn_layout.addWidget(ok_button)
 
         scroll_area.setWidget(remotes_container)
-        main_layout.addWidget(scroll_area, 1)
+
+        main_layout.addWidget(title_section)
+        main_layout.addLayout(scroll_area_layout, 1)
+        main_layout.addLayout(add_remote_btn_layout)
         main_layout.addLayout(ok_btn_layout)
 
-        # Style
-        self.setStyleSheet(
-            """
-            QDialog {
-                background-color: #2d2d2d;
-            }
-        """
-        )
+    def _add_remote(self):
+        """Thêm remote mới"""
+        self.add_remote_requested.emit()
+
+    def on_add_remote_requested(self, callback: Callable):
+        """Xử lý khi user muốn thêm remote"""
+        self.add_remote_requested.connect(callback)
 
     def _load_remotes(self):
         """Load danh sách remotes từ data manager"""

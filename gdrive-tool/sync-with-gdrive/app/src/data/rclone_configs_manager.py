@@ -4,11 +4,19 @@ from ..utils.helpers import app_data_dir, resolve_from_root_dir
 import os
 
 
+def create_rclone_config_path() -> Path:
+    return app_data_dir() / "rclone"
+
+
 class RCloneConfigManager:
+    @staticmethod
+    def get_config_path() -> str:
+        return str(create_rclone_config_path() / "rclone.conf")
+
     @staticmethod
     def rclone_config_path() -> Path:
         # %AppData%/SynRive/rclone/rclone.conf
-        p = app_data_dir() / "rclone"
+        p = create_rclone_config_path()
         p.mkdir(parents=True, exist_ok=True)
         return p / "rclone.conf"
 

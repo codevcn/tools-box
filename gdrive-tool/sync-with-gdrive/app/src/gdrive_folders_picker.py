@@ -15,7 +15,7 @@ from PySide6.QtGui import QPainter, QCloseEvent
 from .components.label import CustomLabel
 from .components.announcement import CustomAnnounce
 from .mixins.keyboard_shortcuts import KeyboardShortcutsDialogMixin
-from .data.data_manager import UserDataManager
+from .data.user_data_manager import UserDataManager
 from .utils.helpers import get_svg_as_icon
 from .workers.fetch_folders_worker import FetchFoldersWorker
 from .components.loading import LoadingDots
@@ -83,7 +83,7 @@ class GDriveFoldersPicker(KeyboardShortcutsDialogMixin):
         # State
         self._selected_full_path = ""
         self._loading_nodes = set()  # Track nodes đang loading
-        self._previous_selected_item = None
+        self._previous_selected_item: QTreeWidgetItem | None = None
 
         self._setup_ui()
 
@@ -112,7 +112,7 @@ class GDriveFoldersPicker(KeyboardShortcutsDialogMixin):
             dot_size=14,
             color=ThemeColors.MAIN,
         )
-        loading_container = QWidget()
+        loading_container = QFrame()
         loading_layout = QVBoxLayout(loading_container)
         loading_layout.addWidget(
             self.loading_dots, alignment=Qt.AlignmentFlag.AlignCenter
@@ -230,6 +230,19 @@ class GDriveFoldersPicker(KeyboardShortcutsDialogMixin):
         btn_layout.addWidget(self.btn_refresh)
         btn_layout.addStretch()
 
+        cancel_btn = CustomButton("Hủy")
+        cancel_btn.setStyleSheet(
+            f"""
+            background-color: {ThemeColors.STRONG_GRAY};
+            border: 1px solid {ThemeColors.GRAY_BORDER};
+            color: black;
+            padding: 4px 18px 6px;
+            border-radius: 6px;
+            """
+        )
+        cancel_btn.on_clicked(self.close)
+        btn_layout.addWidget(cancel_btn)
+
         self.btn_select = CustomButton("Chọn thư mục này", is_bold=True)
         self.btn_select.setIcon(
             get_svg_as_icon(
@@ -302,6 +315,7 @@ class GDriveFoldersPicker(KeyboardShortcutsDialogMixin):
     def _refresh_data(self):
         self.helper_label.setText("Chọn 1 thư mục để bắt đầu...")
         self.final_folder_label.setText("")
+        self._previous_selected_item = None
         self._load_root_data()
 
     # --- LOGIC: ROOT FILES ---
@@ -410,11 +424,10 @@ class GDriveFoldersPicker(KeyboardShortcutsDialogMixin):
 
         if not folder_names:
             if isinstance(parent_node, QTreeWidgetItem):
-                # Nếu không có con, set child indicator policy thành Don'tShow để mất mũi tên
+                # Set policy là DontShowIndicator để ẩn mũi tên đi
                 parent_node.setChildIndicatorPolicy(
-                    QTreeWidgetItem.ChildIndicatorPolicy.ShowIndicator
-                )  # Vẫn hiện? hay ẩn?
-                # Thực ra nếu rỗng thì không cần làm gì, nó tự hết expand
+                    QTreeWidgetItem.ChildIndicatorPolicy.DontShowIndicator
+                )
             return
 
         # Icons

@@ -144,15 +144,13 @@ class CustomAnnounce(QObject):
         if not isinstance(layout, QGridLayout):
             return
 
-        grid_layout = cast(QGridLayout, layout)
-
         # 1. Tìm Label chứa text chính
         content_label = None
         index = -1
         current_text = self._msg_box.text()
 
-        for i in range(grid_layout.count()):
-            item = grid_layout.itemAt(i)
+        for i in range(layout.count()):
+            item = layout.itemAt(i)
             if item and item.widget():
                 w = item.widget()
                 if isinstance(w, QLabel):
@@ -165,11 +163,11 @@ class CustomAnnounce(QObject):
             return
 
         # 2. Lấy thông tin vị trí cũ trong Grid
-        position_data = grid_layout.getItemPosition(index)
+        position_data = layout.getItemPosition(index)
         row, col, rowspan, colspan = cast(Tuple[int, int, int, int], position_data)
 
         # 3. Remove label cũ khỏi layout
-        grid_layout.removeWidget(content_label)
+        layout.removeWidget(content_label)
 
         # 4. Tạo ScrollArea
         scroll = QScrollArea()
@@ -215,7 +213,7 @@ class CustomAnnounce(QObject):
         scroll.setWidget(content_container)
 
         # 6. Add ScrollArea vào đúng vị trí cũ
-        grid_layout.addWidget(scroll, row, col, rowspan, colspan)
+        layout.addWidget(scroll, row, col, rowspan, colspan)
 
     # -------------------------
     # Core API

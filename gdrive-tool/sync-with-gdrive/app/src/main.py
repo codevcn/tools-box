@@ -22,7 +22,6 @@ from .active_remote_info import ActiveRemoteScreen
 from .components.announcement import CustomAnnounce
 from .components.divider import CustomDivider
 from .utils.helpers import (
-    center_window_on_screen,
     detect_content_type_by_file_extension,
     detect_file_extension,
     detect_path_type,
@@ -41,13 +40,12 @@ from .workers.sync_worker import (
 )
 
 # from testing.mock_sync_worker import MockRcloneSyncWorker
-from .data.data_manager import UserDataConfigSchema, UserDataManager
+from .data.user_data_manager import UserDataConfigSchema, UserDataManager
 from .configs.configs import SyncError, ThemeColors
 from .components.button import CustomButton, LoadingButton
 from .components.overlay import OverlayPosition, PositionedOverlay
 from .settings_screen import SettingsScreen
 import os
-import subprocess
 from .components.window_title_bar import CustomWindowTitleBar
 from .mixins.main_window import MainWindowMixin
 from .testing.performance_testing import PerformanceTestingMixin
@@ -76,10 +74,26 @@ class MainWindow(PerformanceTestingMixin, MainWindowMixin):
         self._log_output: ScrollableText
         self._right_actions_layout: QHBoxLayout
         self._active_remote_label: CustomLabel
+        self._user_already_had_data: bool = False
         self._copy_log_btn: CustomButton
         self._settings_dialog: SettingsScreen | None = None
         self._copy_log_btn_overlay: PositionedOverlay
         self._setup_ui()
+
+    def _center_window(self) -> None:
+        """Căn giữa cửa sổ ứng dụng vào màn hình (tránh bị che bởi taskbar)."""
+        # Lấy hình học của màn hình hiện tại (trừ thanh taskbar)
+        screen = self.screen()
+        available_geometry = screen.availableGeometry()
+
+        # Lấy hình học của cửa sổ ứng dụng
+        window_geometry = self.frameGeometry()
+
+        # Di chuyển tâm của hình học cửa sổ trùng với tâm của màn hình khả dụng
+        window_geometry.moveCenter(available_geometry.center())
+
+        # Di chuyển cửa sổ thật đến vị trí trên bên trái của hình học đã tính toán
+        self.move(window_geometry.topLeft())
 
     def _set_local_paths_list(self, paths: list[str]) -> None:
         self._local_paths_list = paths
@@ -87,6 +101,10 @@ class MainWindow(PerformanceTestingMixin, MainWindowMixin):
 
     def _set_gdrive_path_input(self, path: str) -> None:
         self._gdrive_path_input.setText(path)
+
+    def _set_active_remote(self, remote_name: str) -> None:
+        self._active_remote = remote_name
+        self._active_remote_label.setText(remote_name)
 
     def _add_keyboard_shortcuts(self) -> None:
         """Bắt sự kiện nhấn các tổ hợp phím."""
@@ -106,11 +124,15 @@ class MainWindow(PerformanceTestingMixin, MainWindowMixin):
 
         # Ctrl + L (login Google Drive)
         shortcut_ctrl_l = QShortcut(QKeySequence("Ctrl+L"), self)
-        shortcut_ctrl_l.activated.connect(self._do_login_gdrive)
+        shortcut_ctrl_l.activated.connect(self._open_login_gdrive_screen)
 
         # Ctrl + F (mở dialog chọn thư mục Google Drive)
         shortcut_ctrl_f = QShortcut(QKeySequence("Ctrl+F"), self)
         shortcut_ctrl_f.activated.connect(self._open_gdrive_folders_picker)
+
+        # Ctrl + P (mở dialog chọn active remote)
+        shortcut_ctrl_p = QShortcut(QKeySequence("Ctrl+P"), self)
+        shortcut_ctrl_p.activated.connect(self._open_active_remote_screen)
 
     def _setup_ui(self) -> None:
         """Thiết lập giao diện người dùng."""
@@ -278,16 +300,21 @@ class MainWindow(PerformanceTestingMixin, MainWindowMixin):
             """
         )
 
+        # Tính toán kích thước layout trước khi căn giữa
+        self.adjustSize()
+        # Căn giữa màn hình
+        self._center_window()
+
         # Chạy animation mở app ngay khi giao diện hiển thị
         QTimer.singleShot(0, self._animate_open_zoom)
         # Thêm các phím tắt
         QTimer.singleShot(0, self._add_keyboard_shortcuts)
         # Thiết lập danh sách local paths ban đầu
         QTimer.singleShot(
-            500, lambda paths=self._local_paths_list: self._set_local_paths_list(paths)
+            800, lambda paths=self._local_paths_list: self._set_local_paths_list(paths)
         )
         # Load saved user data
-        QTimer.singleShot(800, self._load_saved_user_data)
+        QTimer.singleShot(1000, self._load_saved_user_data)
 
     def _render_top_menu(self) -> None:
         # Nút Browse local folder (bên trái)
@@ -322,7 +349,7 @@ class MainWindow(PerformanceTestingMixin, MainWindowMixin):
         self._top_menu_layout.addLayout(self._right_actions_layout)
 
     def _reveal_path_in_file_explorer(self, path: str) -> None:
-        """Mở file explorer và chọn tệp/thư mục đã đồng bộ."""
+        """Mở file explorer và chọn tệp/thư mục."""
         abs_path = os.path.abspath(path)
         if os.path.isfile(abs_path):
             QProcess.startDetached(
@@ -468,6 +495,7 @@ class MainWindow(PerformanceTestingMixin, MainWindowMixin):
         """Mở window để chọn active remote"""
         active_remote_screen = ActiveRemoteScreen(self)
         active_remote_screen.remote_selected.connect(self._on_remote_selected)
+        active_remote_screen.on_add_remote_requested(self._open_login_gdrive_screen)
         active_remote_screen.exec()
 
     def _on_remote_selected(self, remote_name: str):
@@ -542,16 +570,19 @@ class MainWindow(PerformanceTestingMixin, MainWindowMixin):
         if folder:
             self._set_local_paths_list([folder])
 
-    def _on_login_gdrive_successful(
-        self, login_result: LoginResult, remote_name: str, err_msg: str
-    ) -> None:
+    def _on_login_gdrive_successful(self, _: LoginResult, remote_name: str) -> None:
         """Xử lý khi đăng nhập Google Drive thành công."""
-        self._load_saved_user_data()
+        self._add_user_remote(remote_name)
+
+    def _open_login_gdrive_screen(self) -> None:
+        """Bắt đầu quá trình đăng nhập Google Drive."""
+        self._do_login_gdrive()
 
     def _do_login_gdrive(self) -> None:
         """Mở popup đăng nhập Google Drive."""
         login_gdrive_screen = LoginGDriveScreen(self)
         login_gdrive_screen.login_result.connect(self._on_login_gdrive_successful)
+        login_gdrive_screen.login_log.connect(self._write_log)
         login_gdrive_screen.exec()
 
     def _on_copy_log(self) -> None:
@@ -771,9 +802,9 @@ class MainWindow(PerformanceTestingMixin, MainWindowMixin):
         """Hiển thị dữ liệu sync đã lưu."""
         active_remote = saved_user_data.get("active_remote")
         if saved_user_data.get("remotes") and active_remote:
+            self._user_already_had_data = True
             # Update active remote bar với remote name
-            self._active_remote = active_remote
-            self._active_remote_label.setText(active_remote)
+            self._set_active_remote(active_remote)
 
             # Hiển thị nút Settings và gdrive root dir đã lưu (nếu có)
             last_gdrive_entered_dir = saved_user_data.get("last_gdrive_entered_dir")
@@ -796,6 +827,7 @@ class MainWindow(PerformanceTestingMixin, MainWindowMixin):
             settings_btn.setCursor(Qt.CursorShape.PointingHandCursor)
             self._right_actions_layout.addWidget(settings_btn)
         else:
+            self._user_already_had_data = False
             login_btn = CustomButton("Đăng nhập Google Drive")
             login_btn.setObjectName("LoginGDriveButton")
             login_btn.setIcon(
@@ -809,7 +841,7 @@ class MainWindow(PerformanceTestingMixin, MainWindowMixin):
             )
             login_btn.setIconSize(QSize(26, 26))
             login_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-            login_btn.on_clicked(self._do_login_gdrive)
+            login_btn.on_clicked(self._open_login_gdrive_screen)
             login_btn_font = login_btn.font()
             login_btn_font.setBold(True)
             login_btn_font.setPointSize(12)
@@ -826,6 +858,15 @@ class MainWindow(PerformanceTestingMixin, MainWindowMixin):
         """Tải dữ liệu người dùng đã lưu (nếu có)."""
         self._ensure_significant_data_initialized()
         self._render_user_data(self._data_manager.get_entire_config())
+
+    def _add_user_remote(self, remote_name: str) -> None:
+        """Thêm remote vào config."""
+        if self._user_already_had_data:
+            self._data_manager.save_active_remote(remote_name)
+            self._data_manager.add_new_remote(remote_name)
+            self._set_active_remote(remote_name)
+        else:
+            self._load_saved_user_data()
 
 
 def santize_input_paths(local_paths: list[str]) -> list[str]:
@@ -879,6 +920,5 @@ def start_app(local_paths: list[str]) -> None:
     local_paths = santize_input_paths(local_paths)
 
     window = MainWindow(local_paths)
-    center_window_on_screen(window)
     window.show()
     sys.exit(app.exec())

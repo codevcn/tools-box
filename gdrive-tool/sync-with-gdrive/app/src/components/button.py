@@ -147,7 +147,7 @@ class LoadingButton(CustomButton):
         # Khởi tạo state trước (để tránh lỗi khi setEnabled gọi) ---
         self._is_loading = False
         self._original_text = text
-        self._original_icon = self.icon()
+        self._original_icon: QPixmap | QIcon = self.icon()
 
         # Tạo layout để căn giữa loader
         self._layout = QHBoxLayout(self)

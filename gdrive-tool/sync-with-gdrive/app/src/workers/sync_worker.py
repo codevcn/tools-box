@@ -9,7 +9,7 @@ from enum import Enum
 from pathlib import Path
 
 from PySide6.QtCore import QObject, Signal, QProcess
-from ..data.data_manager import UserDataManager
+from ..data.user_data_manager import UserDataManager
 from ..data.rclone_configs_manager import RCloneConfigManager
 
 LOG_SPEED_INTERVAL: str = "0.5s"  # Tốc độ lấy log
@@ -208,7 +208,7 @@ class RcloneSyncWorker(QObject):
             return
         self._parse_output(self._process.readAllStandardError().data())
 
-    def _parse_output(self, raw_bytes: bytes) -> None:
+    def _parse_output(self, raw_bytes: bytes | bytearray | memoryview) -> None:
         text_block = bytes(raw_bytes).decode(errors="replace")
 
         for line in text_block.splitlines():
@@ -218,7 +218,6 @@ class RcloneSyncWorker(QObject):
 
             try:
                 json_data = json.loads(line)
-                # print(f">>> Parsed JSON: {json_data}") # Uncomment để debug
 
                 # 1. Xử lý Progress (stats)
                 if "stats" in json_data:

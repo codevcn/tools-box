@@ -9,6 +9,7 @@
     <file alias="close_icon.svg">app/src/assets/images/svg/close_icon.svg</file>
     <file alias="cloud_check_icon.svg">app/src/assets/images/svg/cloud_check_icon.svg</file>
     <file alias="code_icon.svg">app/src/assets/images/svg/code_icon.svg</file>
+    <file alias="data_icon.svg">app/src/assets/images/svg/data_icon.svg</file>
     <file alias="double_check_icon.svg">app/src/assets/images/svg/double_check_icon.svg</file>
     <file alias="down_arrow_icon.svg">app/src/assets/images/svg/down_arrow_icon.svg</file>
     <file alias="down_arrow_white_icon.svg">app/src/assets/images/svg/down_arrow_white_icon.svg</file>
@@ -25,12 +26,14 @@
     <file alias="login_icon.svg">app/src/assets/images/svg/login_icon.svg</file>
     <file alias="markdown_icon.svg">app/src/assets/images/svg/markdown_icon.svg</file>
     <file alias="pdf_icon.svg">app/src/assets/images/svg/pdf_icon.svg</file>
+    <file alias="plus_icon.svg">app/src/assets/images/svg/plus_icon.svg</file>
     <file alias="ppt_icon.svg">app/src/assets/images/svg/ppt_icon.svg</file>
     <file alias="refresh_icon.svg">app/src/assets/images/svg/refresh_icon.svg</file>
     <file alias="right_arrow_icon.svg">app/src/assets/images/svg/right_arrow_icon.svg</file>
     <file alias="right_arrow_white_icon.svg">app/src/assets/images/svg/right_arrow_white_icon.svg</file>
     <file alias="settings_icon.svg">app/src/assets/images/svg/settings_icon.svg</file>
     <file alias="txt_icon.svg">app/src/assets/images/svg/txt_icon.svg</file>
+    <file alias="user_icon.svg">app/src/assets/images/svg/user_icon.svg</file>
     <file alias="video_icon.svg">app/src/assets/images/svg/video_icon.svg</file>
     <file alias="warn_icon.svg">app/src/assets/images/svg/warn_icon.svg</file>
     <file alias="word_icon.svg">app/src/assets/images/svg/word_icon.svg</file>
