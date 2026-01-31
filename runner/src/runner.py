@@ -168,9 +168,6 @@ def open_vscode_workspaces_in_system_folder():
 
 
 def open_working_vscode(ide_prefix: str, value: str, powershell_only=False):
-    print(
-        f">>> Open working vscode workspace: {ide_prefix} - {value} - {powershell_only}"
-    )
     if not ide_prefix:
         raise Exception("IDE prefix is missing.")
     cmd_args = [
