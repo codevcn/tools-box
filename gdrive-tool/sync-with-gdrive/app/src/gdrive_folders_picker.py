@@ -225,7 +225,7 @@ class GDriveFoldersPicker(KeyboardShortcutsDialogMixin):
             )
         )
         self.btn_refresh.setIconSize(QSize(24, 24))
-        self.btn_refresh.on_clicked(self._load_root_data)
+        self.btn_refresh.on_clicked(self._refresh_data)
 
         btn_layout.addWidget(self.btn_refresh)
         btn_layout.addStretch()
