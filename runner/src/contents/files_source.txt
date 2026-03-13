@@ -1,0 +1,210 @@
+@@file-name[[print project tree]]{{print_project_tree.py}}
+@@file-content{{import os
+
+
+def print_tree(root_path, file_handle, prefix="", exclude_dirs=None):
+    if exclude_dirs is None:
+        exclude_dirs = []
+
+    entries = sorted(os.listdir(root_path))
+    entries = [
+        e
+        for e in entries
+        if os.path.isdir(os.path.join(root_path, e))
+        or os.path.isfile(os.path.join(root_path, e))
+    ]
+
+    for i, entry in enumerate(entries):
+        path = os.path.join(root_path, entry)
+        connector = "└── " if i == len(entries) - 1 else "├── "
+
+        # Loại trừ thư mục không muốn in
+        if os.path.isdir(path) and entry in exclude_dirs:
+            continue
+
+        file_handle.write(f"{prefix}{connector}{entry}\n")
+
+        if os.path.isdir(path):
+            extension = "    " if i == len(entries) - 1 else "│   "
+            print_tree(path, file_handle, prefix + extension, exclude_dirs)
+
+
+# Ví dụ sử dụng
+if __name__ == "__main__":
+    root_directory = "."  # Thư mục gốc cần duyệt
+    excluded = [
+        "node_modules",
+        "__pycache__",
+        ".git",
+        ".husky",
+        ".vscode",
+        "dist",
+        "migrations",
+    ]  # Các thư mục cần loại trừ
+    output_file = "project_tree.txt"
+
+    with open(output_file, "w", encoding="utf-8") as f:
+        f.write(f"Tree view of: {os.path.abspath(root_directory)}\n\n")
+        print_tree(root_directory, f, exclude_dirs=excluded)
+
+    print(f"Cây thư mục đã được ghi vào file: {output_file}")
+}}
+
+@@file-name[[AI coding skills]]{{doc/skills/split-code.md}}
+@@file-content{{Kỹ năng **Split Code** (chia nhỏ mã nguồn) trong lập trình không chỉ đơn thuần là việc cắt một tệp tin lớn thành nhiều tệp tin nhỏ. Trong ngữ cảnh **Clean Code**, đây là một tư duy chiến lược về việc tổ chức logic, quản lý sự phức tạp và tối ưu hóa khả năng đọc hiểu cho cả con người lẫn các hệ thống trí tuệ nhân tạo (AI).
+
+Dưới đây là mô tả chi tiết về kỹ năng Split Code dưới góc độ kỹ thuật và tư duy hệ thống:
+
+---
+
+## 1. Bản chất của Split Code trong Clean Code
+
+Split Code là quá trình phân rã một khối logic phức tạp thành các đơn vị (unit) nhỏ hơn, độc lập và có ý nghĩa rõ ràng. Mục tiêu tối thượng là đạt được sự **phân tách các mối quan tâm (Separation of Concerns - SoC)**.
+
+Thay vì một hàm "vạn năng" làm mọi thứ, chúng ta chia nó thành các hàm bổ trợ, các lớp (class) hoặc các module riêng biệt.
+
+---
+
+## 2. Các cấp độ chia nhỏ mã nguồn
+
+### A. Cấp độ hàm (Function Level) - Nguyên tắc Đơn nhiệm (SRP)
+
+Đây là cấp độ cơ bản nhất. Một hàm chỉ nên thực hiện **một nhiệm vụ duy nhất**.
+
+- **Dấu hiệu cần split:** Khi một hàm dài quá 20-30 dòng hoặc chứa nhiều khối `if-else` lồng nhau, hoặc có các đoạn mã thực hiện các logic khác nhau (ví dụ: vừa kiểm tra dữ liệu, vừa tính toán, vừa lưu vào cơ sở dữ liệu).
+- **Cách thực hiện:** Trích xuất các đoạn logic con thành các hàm riêng biệt với tên gọi mang tính động từ mô tả chính xác hành động đó.
+
+### B. Cấp độ lớp và đối tượng (Class/Object Level)
+
+Chia nhỏ dựa trên thực thể và hành vi.
+
+- **Logic xử lý dữ liệu (Business Logic)** nên được tách rời khỏi **Logic hiển thị (UI Logic)** hoặc **Logic truy xuất dữ liệu (Data Access)**.
+- Sử dụng các Pattern như _Service Layer_ hoặc _Repository Pattern_ để phân chia trách nhiệm.
+
+### C. Cấp độ Module/Component
+
+Chia nhỏ dựa trên tính năng hoặc phạm vi hệ thống.
+
+- Gom nhóm các hàm/lớp có liên quan mật thiết vào một tệp hoặc thư mục riêng.
+- Điều này giúp giảm thiểu sự phụ thuộc vòng (circular dependency) và giúp AI dễ dàng quét qua cấu trúc thư mục để hiểu kiến trúc tổng thể.
+
+---
+
+## 3. Các tiêu chí để Split Code hiệu quả
+
+Để việc chia nhỏ mã nguồn thực sự giúp code "sạch" hơn, bạn cần nắm vững các tiêu chí sau:
+
+1. **Tính trừu tượng đồng nhất (Same Level of Abstraction):** Trong một hàm, các câu lệnh nên ở cùng một mức độ chi tiết. Đừng để một câu lệnh gọi hàm cao cấp (ví dụ: `processOrder()`) nằm ngay cạnh một dòng mã xử lý bit thấp cấp.
+2. **Tính đóng gói (Encapsulation):** Những gì thuộc về nội bộ của một module thì nên được giấu kín. Chỉ tiết lộ những "giao diện" (interface/API) cần thiết cho bên ngoài.
+3. **Giảm thiểu trạng thái chia sẻ (Minimize Shared State):** Khi chia nhỏ code, hãy cố gắng thiết kế các hàm theo hướng **Pure Function** (hàm thuần túy) – nhận đầu vào, trả đầu ra và không gây ra tác dụng phụ (side effects) lên biến toàn cục.
+
+---
+
+## 4. Tại sao Split Code quan trọng đối với AI?
+
+Khi bạn yêu cầu một AI (như tôi) hỗ trợ viết code hoặc debug, việc Split Code tốt mang lại lợi ích khổng lồ:
+
+- **Tối ưu hóa Context Window:** AI có giới hạn về số lượng từ (token) có thể xử lý một lúc. Code được chia nhỏ giúp AI tập trung chính xác vào module đang gặp lỗi mà không bị "nhiễu" bởi các phần không liên quan.
+- **Khả năng kiểm thử (Testability):** Các hàm nhỏ, độc lập dễ dàng viết Unit Test hơn. AI có thể dựa trên các hàm nhỏ này để tạo ra bộ test case bao phủ 100% logic.
+- **Tái sử dụng (Reusability):** AI có thể dễ dàng nhận diện các mẫu (pattern) và gợi ý tái sử dụng các module đã có, thay vì viết lại từ đầu.
+
+---
+
+## 5. Ví dụ minh họa
+
+Dưới đây là ví dụ về kỹ năng **Split Code** được thực hiện bằng ngôn ngữ **Dart** (thường dùng trong Flutter). Tôi sẽ trình bày một kịch bản phổ biến: Xử lý logic đăng ký người dùng.
+
+### 1. Mã nguồn trước khi Split (Monolithic/Dirty Code)
+
+Trong ví dụ này, một hàm duy nhất đảm nhận quá nhiều trách nhiệm: kiểm tra định dạng email, kiểm tra mật khẩu, lưu dữ liệu và gửi thông báo. Điều này khiến code trở nên khó bảo trì và AI khó có thể hỗ trợ sửa lỗi cục bộ mà không ảnh hưởng toàn bộ hệ thống.
+
+```dart
+// Một lớp chứa hàm "vạn năng" làm mọi thứ
+class UserService {
+  void registerUser(String email, String password) {
+    // 1. Logic kiểm tra (Validation)
+    if (!email.contains('@')) {
+      print('Email không hợp lệ');
+      return;
+    }
+    if (password.length < 6) {
+      print('Mật khẩu quá ngắn');
+      return;
+    }
+
+    // 2. Logic xử lý dữ liệu (Business Logic)
+    print('Đang mã hóa mật khẩu cho $email...');
+    String hashedPassword = 'hashed_$password';
+
+    // 3. Logic lưu trữ (Data Access)
+    print('Đang lưu $email với pass $hashedPassword vào Database...');
+
+    // 4. Logic thông báo (Notification)
+    print('Đang gửi email chào mừng tới $email...');
+  }
+}
+
+```
+
+---
+
+### 2. Mã nguồn sau khi Split (Clean Code)
+
+Chúng ta sẽ phân rã hàm trên thành các hàm nhỏ và tách biệt các trách nhiệm vào các lớp (class) chuyên biệt. Điều này giúp code "sạch", dễ đọc và cực kỳ thân thiện với các công cụ phân tích mã nguồn của AI.
+
+```dart
+// 1. Lớp chuyên trách việc kiểm tra dữ liệu
+class UserValidator {
+  static bool isValidEmail(String email) => email.contains('@');
+  static bool isValidPassword(String password) => password.length >= 6;
+}
+
+// 2. Lớp chuyên trách việc xử lý Database
+class UserRepository {
+  void saveUser(String email, String hashedPassword) {
+    print('Đã lưu $email vào Database.');
+  }
+}
+
+// 3. Lớp chuyên trách gửi thông báo
+class NotificationService {
+  void sendWelcomeEmail(String email) {
+    print('Đã gửi email chào mừng tới $email.');
+  }
+}
+
+// 4. Lớp điều phối chính (Orchestrator)
+class UserService {
+  final UserRepository _repository = UserRepository();
+  final NotificationService _notification = NotificationService();
+
+  void registerUser(String email, String password) {
+    // Sử dụng kỹ thuật "Guard Clauses" để tách logic kiểm tra
+    if (!_validateInput(email, password)) return;
+
+    final hashedPassword = _hashPassword(password);
+
+    _repository.saveUser(email, hashedPassword);
+    _notification.sendWelcomeEmail(email);
+  }
+
+  // Các hàm bổ trợ (Helper methods) được chia nhỏ
+  bool _validateInput(String email, String password) {
+    if (!UserValidator.isValidEmail(email)) {
+      print('Lỗi: Email sai định dạng');
+      return false;
+    }
+    if (!UserValidator.isValidPassword(password)) {
+      print('Lỗi: Mật khẩu không đủ mạnh');
+      return false;
+    }
+    return true;
+  }
+
+  String _hashPassword(String password) {
+    return 'hashed_secure_$password';
+  }
+}
+
+```
+}}

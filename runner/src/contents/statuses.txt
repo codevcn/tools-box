@@ -1,0 +1,6 @@
+============================
+   STATUSES DESCRIPTION
+OK                     :no errors occurred.
+USER-ERROR             :some errors due to user.
+OUT-OF-MAIN-SECTION    :error occurs when code runs out of the main section (main code).
+============================

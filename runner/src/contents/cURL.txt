@@ -1,0 +1,11 @@
+============================
+   Example CRUD executions to http://127.0.0.1:8080/api
+# GET:
+curl http://127.0.0.1:8080/api/
+# POST:
+curl -X POST -H "Content-Type: application/json" -d "{\"name\": \"value\", \"num\": 123}" http://127.0.0.1:8080/api/
+# PUT:
+curl -X PUT -H "Content-Type: application/json" -d "{\"name\": \"value\", \"num\": 123}" http://127.0.0.1:8080/api/
+# DELETE:
+curl -X DELETE http://127.0.0.1:8080/api/
+============================

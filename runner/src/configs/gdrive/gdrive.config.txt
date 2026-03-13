@@ -1,0 +1,8 @@
+# 1. Cấu hình đường dẫn GDrive (phân cách bằng dấu "/", ví dụ: "FolderA/FolderB/FolderC")
+folder_path_from_root = "Story Builds"
+
+# 2. Các remote RClone (như định nghĩa trong rclone.conf), phân cách bằng dấu phẩy nếu có nhiều, ví dụ: "remote1,remote2,remote3"
+rclone_remotes = "codevoicainay-mydrive"
+
+# 3. Remote RClone đang hoạt động (sử dụng từ rclone_remotes), ví dụ: "remote1"
+rclone_active_remote = "codevoicainay-mydrive"

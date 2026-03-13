@@ -1,0 +1,70 @@
+import subprocess
+import time
+import argparse
+
+
+def open_thunder_chat_app_in_vscode(ide_prefix, powershell_only=False):
+    # Nếu dùng flag -p, chỉ mở 3 thư mục chính trong terminal
+    if powershell_only:
+        cmd = 'wt -w _blank -d "D:/D-Documents/Code_VCN/React/VCN-THUNDER-CHAT-APP/server" --title "server"'
+        cmd += ' ; nt -d "D:/D-Documents/Code_VCN/React/VCN-THUNDER-CHAT-APP/MS" --title "MS"'
+        cmd += ' ; nt -d "D:/D-Documents/Code_VCN/React/VCN-THUNDER-CHAT-APP/client" --title "client"'
+        subprocess.run(cmd, shell=True)
+        return
+
+    # Mặc định: mở tất cả microservices trong terminal
+    folders_for_CLI = [
+        "D:/D-Documents/Code_VCN/React/VCN-THUNDER-CHAT-APP/server",
+        "D:/D-Documents/Code_VCN/React/VCN-THUNDER-CHAT-APP/MS/user-auth-service",
+        "D:/D-Documents/Code_VCN/React/VCN-THUNDER-CHAT-APP/MS/conversation-service",
+        "D:/D-Documents/Code_VCN/React/VCN-THUNDER-CHAT-APP/MS/chat-service",
+        "D:/D-Documents/Code_VCN/React/VCN-THUNDER-CHAT-APP/MS/search-service",
+        "D:/D-Documents/Code_VCN/React/VCN-THUNDER-CHAT-APP/MS/media-service",
+        "D:/D-Documents/Code_VCN/React/VCN-THUNDER-CHAT-APP/MS/call-service",
+        "D:/D-Documents/Code_VCN/React/VCN-THUNDER-CHAT-APP/MS/notification_service",
+    ]
+    folders_for_ide = [
+        "D:/D-Documents/Code_VCN/React/VCN-THUNDER-CHAT-APP/MS",
+        "D:/D-Documents/Code_VCN/React/VCN-THUNDER-CHAT-APP/client",
+    ]
+
+    # Mở một cửa sổ terminal mới tại client folder
+    client_window = 'wt -w _blank -d "D:/D-Documents/Code_VCN/React/VCN-THUNDER-CHAT-APP/client" cmd /k dev'
+    subprocess.run(client_window, shell=True)
+
+    # Mở các tab trong Windows Terminal cho server và các microservices
+    limit = 3
+    cmd = "wt -w 0 " + " ; ".join(
+        [
+            (
+                f'nt -d "{folder}" --title "{folder.split("/")[-1]}" '
+                f'cmd {"/k dev" if current_index <= limit else ""}'
+            )
+            for current_index, folder in enumerate(folders_for_CLI)
+        ]
+    )
+    subprocess.run(cmd, shell=True)
+
+    # Mở các thư mục trong IDE
+    for folder in folders_for_ide:
+        subprocess.run([ide_prefix, folder], shell=True)
+        time.sleep(2)  # Đợi 2 giây giữa các lần mở
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(
+        description="Open Thunder Chat App workspace in terminal and IDE"
+    )
+    parser.add_argument(
+        "ide_prefix", nargs="?", default="code", help="IDE prefix (code or cs)"
+    )
+    parser.add_argument(
+        "-p",
+        "--powershell-only",
+        dest="powershell_only",
+        action="store_true",
+        help="Only open folders in Windows Terminal (skip IDE)",
+    )
+    args = parser.parse_args()
+
+    open_thunder_chat_app_in_vscode(args.ide_prefix, args.powershell_only)
