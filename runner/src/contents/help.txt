@@ -23,6 +23,7 @@ git               :to run git command.
                   :open runner files in vscode.
    ws             :open working workspaces in system folder.
    env            :open enviroment variables in system folder.
+   proms          :open prompts folder in system folder (Template Replacer Extension).
 ## code:
                   :open runner files in vscode.
    test           :open testing folder in vscode.

@@ -19,6 +19,7 @@ RUNNER_TYPE_GIT = "git"
 RUNNER_GDRIVE = "gdrive"
 # open
 RUNNER_OPEN_ENV = "env"
+RUNNER_OPEN_PROMPTS_FOLDER = "proms"
 # code
 RUNNER_CODE_VSCODE_WORKSPACE = "ws"
 RUNNER_CODE_TEST = "test"
@@ -63,6 +64,8 @@ RUNNER_WARNING_FLAG_MISSING = "MISSING-FLAG"
 
 RUNNER_ROOT_FOLDER = os.getenv("ROOT_FOLDER_PATH")
 RUNNER_USEFUL_CODES_PREFIX_PATH = os.getenv("USEFUL_CODES_FOLDER_PATH") or ""
+
+TEMPLATE_REPLACER_FOLDER_PATH = os.getenv("TEMPLATE_REPLACER_FOLDER_PATH") or ""
 
 # --- Functions ---
 
@@ -163,6 +166,11 @@ def print_cURL():
 
 def open_environment_variables_panel():
     subprocess.run(["rundll32.exe", "sysdm.cpl,EditEnvironmentVariables"], shell=True)
+    sys.exit(0)
+
+
+def open_prompts_folder():
+    subprocess.run(["start", f"{TEMPLATE_REPLACER_FOLDER_PATH}/Prompts"], shell=True)
     sys.exit(0)
 
 
@@ -283,9 +291,7 @@ def convert_txt_to_srt(value):
 
 def edit_prompts():
     subprocess.run(
-        [
-            "D:/D-Documents/Browser-Extensions/codevoicainay/template_replacer/edit-prompts.cmd"
-        ],
+        [f"{TEMPLATE_REPLACER_FOLDER_PATH}/edit-prompts.cmd"],
         shell=True,
     )
     sys.exit(0)
@@ -407,6 +413,8 @@ if __name__ == "__main__":
                 open_runner_files_in_vscode(default_ide_prefix)
             elif action_included == RUNNER_OPEN_ENV:
                 open_environment_variables_panel()
+            elif action_included == RUNNER_OPEN_PROMPTS_FOLDER:
+                open_prompts_folder()
             elif action_included == RUNNER_CODE_VSCODE_WORKSPACE:
                 open_vscode_workspaces_in_system_folder()
             else:
