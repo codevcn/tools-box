@@ -42,7 +42,7 @@ if __name__ == "__main__":
         commit_message = " ".join(sys.argv[2:])  # Lấy toàn bộ phần còn lại
         cmd = (
             f'wt nt -d "{RUNNER_ROOT_DIR}" '
-            f'cmd /k "git checkout runner && git add . && git commit -m \\"{commit_message}\\" && git push origin runner"'
+            f'cmd /k "git add . && git commit -m \\"{commit_message}\\" && git push origin main"'
         )
         subprocess.run(cmd, shell=True)
     elif git_type == RUNNER_GIT_REMOTE:

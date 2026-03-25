@@ -42,6 +42,7 @@ git               :to run git command.
    list-npm       :list all global npm packages.
    dld-path       :set download path in Chrome to current folder in CLI.
    fm-sub         :format subtitle txt file to srt file.
+   proms          :edit prompts in prompts folder in notepad (Template Replacer Extension).
 ## print:
    os             :print OS info.
    stts           :print runner-status description.
