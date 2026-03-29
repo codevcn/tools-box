@@ -72,21 +72,23 @@ def set_download_dir_in_preferences(pref_path: Path, download_dir: str) -> bool:
 
 def init_download_dir() -> str:
     """
-    Lấy tham số path truyền vào khi chạy file. Nếu có path thì dùng path làm thư mục tải về.
-    Còn ko có path thì quét DOWNLOAD_DIRECTORIES_DIR để tìm folder có index lớn nhất từ trc
+    Lấy tham số tên thư mục truyền vào khi chạy script. Nếu có tên thì tạo thư mục với
+    tên đó bên trong DOWNLOAD_DIRECTORIES_DIR.
+    Còn ko có tên thì quét DOWNLOAD_DIRECTORIES_DIR để tìm folder có index lớn nhất từ trc
     và tạo 1 folder download-{index mới}.
     """
-    # 1. Nếu có truyền path vào khi chạy script (ví dụ: python script.py D:\MyPath)
-    if len(sys.argv) > 1:
-        custom_path = Path(sys.argv[1])
-        custom_path.mkdir(parents=True, exist_ok=True)
-        print(f"Sử dụng đường dẫn tham số = {custom_path}")
-        return str(custom_path.resolve())
-
-    # 2. Nếu ko truyền path, quét thư mục gốc
     base_dir = Path(DOWNLOAD_DIRECTORIES_DIR)
     base_dir.mkdir(parents=True, exist_ok=True)
 
+    # 1. Nếu có truyền tên thư mục khi chạy script (ví dụ: python script.py my-project)
+    if len(sys.argv) > 1 and sys.argv[1].strip():
+        folder_name = sys.argv[1].strip()
+        new_path = base_dir / folder_name
+        new_path.mkdir(parents=True, exist_ok=True)
+        print(f"Sử dụng tên thư mục từ tham số = {new_path}")
+        return str(new_path.resolve())
+
+    # 2. Nếu ko truyền tên, quét thư mục gốc để tự đặt tên download-{N}
     max_index = 0
     folder_pattern = re.compile(r"^download-(\d+)$")
 

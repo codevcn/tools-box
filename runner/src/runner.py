@@ -36,6 +36,7 @@ RUNNER_RUN_CREATE_FILES_IN_FOLDER = "cr-files"
 RUNNER_RUN_SET_DOWNLOAD_PATH_IN_CHROME = "dld-path"
 RUNNER_FORMAT_SUBTITLE_TXT_TO_SRT = "fm-sub"
 RUNNER_EDIT_PROMPTS = "proms"
+RUNNER_RENAME_FILES = "rn-files"
 # git
 RUNNER_GIT_COMMIT_AND_PUSH = "commit"
 # print
@@ -269,18 +270,21 @@ def create_files_in_folder():
     sys.exit(0)
 
 
-def set_download_path_in_chrome():
-    subprocess.run(
-        ["py", f"{RUNNER_USEFUL_CODES_PREFIX_PATH}/set_download_path_in_chrome.py"],
-        shell=True,
-    )
+def set_download_path_in_chrome(folder_name: str | None = None):
+    cmd_args = [
+        "py",
+        f"{RUNNER_USEFUL_CODES_PREFIX_PATH}/set_download_path_in_chrome.py",
+    ]
+    if folder_name:
+        cmd_args.append(folder_name)
+    subprocess.run(cmd_args, shell=True)
     sys.exit(0)
 
 
 def convert_txt_to_srt(value):
     subprocess.run(
         [
-            "python",
+            "py",
             f"{RUNNER_USEFUL_CODES_PREFIX_PATH}/sub-youtube-video/format_subtitle_txt_to_srt.py",
             value,
         ],
@@ -294,6 +298,19 @@ def edit_prompts():
         [f"{TEMPLATE_REPLACER_FOLDER_PATH}/edit-prompts.cmd"],
         shell=True,
     )
+    sys.exit(0)
+
+
+def rename_files(folder_path: str | None = None, prefix: str | None = None):
+    cmd_args = [
+        "py",
+        f"{RUNNER_USEFUL_CODES_PREFIX_PATH}/rename_files.py",
+    ]
+    if folder_path:
+        cmd_args.append(folder_path)
+    if prefix:
+        cmd_args.append(prefix)
+    subprocess.run(cmd_args, shell=True)
     sys.exit(0)
 
 
@@ -318,6 +335,12 @@ if __name__ == "__main__":
             nargs="?",
             default=None,
             help="Value (e.g. <remote-name> for gdrive set-remote)",
+        )
+        parser.add_argument(
+            "extra",
+            nargs="?",
+            default=None,
+            help="Extra value (e.g. prefix for rn-files)",
         )
         parser.add_argument(
             "-m",
@@ -347,6 +370,7 @@ if __name__ == "__main__":
         type_included = args.type
         action_included = args.action
         value_included = args.value
+        extra_included = args.extra
         user_message_included = args.user_message
 
         # for coding
@@ -399,11 +423,13 @@ if __name__ == "__main__":
             elif action_included == RUNNER_RUN_CREATE_FILES_IN_FOLDER:
                 create_files_in_folder()
             elif action_included == RUNNER_RUN_SET_DOWNLOAD_PATH_IN_CHROME:
-                set_download_path_in_chrome()
+                set_download_path_in_chrome(value_included)
             elif action_included == RUNNER_FORMAT_SUBTITLE_TXT_TO_SRT:
                 convert_txt_to_srt(value_included)
             elif action_included == RUNNER_EDIT_PROMPTS:
                 edit_prompts()
+            elif action_included == RUNNER_RENAME_FILES:
+                rename_files(value_included, extra_included)
             elif action_included == None:
                 raise Exception(RUNNER_WARNING_ACTION_MISSING)
             else:

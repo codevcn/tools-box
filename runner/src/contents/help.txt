@@ -1,15 +1,17 @@
 ===========================================
-# Update at 01/01/2024 6h49 PM
+# Update at 29/03/2026 6h18 PM
 ===========================================
 # Help for runner command:
 
 # Usage:
-runner [[-h] | <type> <action> [[-v value] | [-m "some messages"]]]
+runner [[-h] | <type> <action> [<value> [<extra>]] [-m "message"] [-a] [-p]]
 
 # Available flags:
 -h, --help        :print this help.
 -m, --message     :input message for external script.
 -v, --value       :input value for external script.
+-a                :using Antigravity IDE instead of VSCode.
+-p                :only open in PowerShell, not IDE.
 
 # Available types:
 open              :to open in system folder.
@@ -44,6 +46,8 @@ git               :to run git command.
    dld-path       :set download path in Chrome to current folder in CLI.
    fm-sub         :format subtitle txt file to srt file.
    proms          :edit prompts in prompts folder in notepad (Template Replacer Extension).
+   rn-files       :rename files in specified folder with specified prefix.
+                  // Example: runner run rn-files "D:/D-Documents/Làm về TikTok" "tiktok"
 ## print:
    os             :print OS info.
    stts           :print runner-status description.
@@ -54,6 +58,6 @@ git               :to run git command.
 
 # Example:
 The command `runner open vscode-ws` will open the working workspaces in vscode.
-The command `runner open vscode-ws :ABC` will open the file ABC.code-workspace in vscode.
+The command `runner run rn-files "D:/D-Documents/Làm về TikTok" "tiktok"` will rename files with prefix "tiktok" in folder "D:/D-Documents/Làm về TikTok".
 The command `runner git commit -m "update git command"` will execute git add all files and commit with a message and push with upstream.
 ===========================================
