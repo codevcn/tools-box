@@ -37,6 +37,8 @@ RUNNER_RUN_SET_DOWNLOAD_PATH_IN_CHROME = "dld-path"
 RUNNER_FORMAT_SUBTITLE_TXT_TO_SRT = "fm-sub"
 RUNNER_EDIT_PROMPTS = "proms"
 RUNNER_RENAME_FILES = "rn-files"
+RUNNER_DELETE_FILES = "del-files"
+RUNNER_KEEP_FILES = "keep-files"
 # git
 RUNNER_GIT_COMMIT_AND_PUSH = "commit"
 # print
@@ -314,6 +316,32 @@ def rename_files(folder_path: str | None = None, prefix: str | None = None):
     sys.exit(0)
 
 
+def delete_files(folder_path: str | None = None, ext: str | None = None):
+    cmd_args = [
+        "py",
+        f"{RUNNER_USEFUL_CODES_PREFIX_PATH}/delete_files.py",
+    ]
+    if folder_path:
+        cmd_args.append(folder_path)
+    if ext:
+        cmd_args.append(ext)
+    subprocess.run(cmd_args, shell=True)
+    sys.exit(0)
+
+
+def keep_files(folder_path: str | None = None, ext: str | None = None):
+    cmd_args = [
+        "py",
+        f"{RUNNER_USEFUL_CODES_PREFIX_PATH}/keep_files_with_ext.py",
+    ]
+    if folder_path:
+        cmd_args.append(folder_path)
+    if ext:
+        cmd_args.append(ext)
+    subprocess.run(cmd_args, shell=True)
+    sys.exit(0)
+
+
 # --- Main ---
 
 if __name__ == "__main__":
@@ -430,6 +458,10 @@ if __name__ == "__main__":
                 edit_prompts()
             elif action_included == RUNNER_RENAME_FILES:
                 rename_files(value_included, extra_included)
+            elif action_included == RUNNER_DELETE_FILES:
+                delete_files(value_included, extra_included)
+            elif action_included == RUNNER_KEEP_FILES:
+                keep_files(value_included, extra_included)
             elif action_included == None:
                 raise Exception(RUNNER_WARNING_ACTION_MISSING)
             else:

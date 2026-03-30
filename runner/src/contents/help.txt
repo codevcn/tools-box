@@ -48,6 +48,10 @@ git               :to run git command.
    proms          :edit prompts in prompts folder in notepad (Template Replacer Extension).
    rn-files       :rename files in specified folder with specified prefix.
                   // Example: runner run rn-files "D:/D-Documents/Làm về TikTok" "tiktok"
+   del-files      :delete files in specified folder with specified extension.
+                  // Example: runner run del-files "D:/D-Documents/Làm về TikTok" "txt"
+   keep-files     :keep files in specified folder with specified extension, delete others.
+                  // Example: runner run keep-files "D:/D-Documents/Làm về TikTok" "png"
 ## print:
    os             :print OS info.
    stts           :print runner-status description.
