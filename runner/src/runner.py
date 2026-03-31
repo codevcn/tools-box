@@ -310,7 +310,7 @@ def rename_files(folder_path: str | None = None, prefix: str | None = None):
     ]
     if folder_path:
         cmd_args.append(folder_path)
-    if prefix:
+    if prefix is not None:
         cmd_args.append(prefix)
     subprocess.run(cmd_args, shell=True)
     sys.exit(0)
