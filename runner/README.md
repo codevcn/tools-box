@@ -1,210 +1,150 @@
-# Runner - Công Cụ Tự Động Hóa Dòng Lệnh
+# Runner CLI - Công Cụ Tự Động Hóa Dòng Lệnh Python
 
-Công cụ dòng lệnh dựa trên Python để tự động hóa các tác vụ phát triển phổ biến, quản lý workspace và thực thi các thao tác git trên Windows.
+**Runner CLI** là một công cụ dòng lệnh (CLI) được viết bằng Python nhằm tự động hóa các tác vụ lặp đi lặp lại hàng ngày trên hệ điều hành Windows. Công cụ cung cấp một wrapper thống nhất và tiện lợi để điều khiển ứng dụng hệ thống, mở Workspace/IDE (VSCode, Antigravity, Cursor), thao tác Git tự động và thực thi các tiện ích xử lý file nhanh chóng.
 
-## Tính Năng
+---
 
-- 🚀 Quản lý workspace và thư mục nhanh chóng
-- 📝 Tự động hóa thao tác Git (commit, push, remote)
-- 💻 Mở dự án trong VSCode hoặc Cursor IDE
-- 🔧 Hiển thị tiện ích và thông tin hệ thống
-- 📊 Quản lý trạng thái dự án
-- 🔗 Tài liệu tham khảo lệnh cURL
+## 🚀 Tính Năng Nổi Bật
 
-## Yêu Cầu
+- **Mở siêu tốc:** Mở thư mục gốc, thư mục làm việc, Prompt templates hoặc Environment Variables chỉ qua 2-3 ký tự.
+- **Tích hợp IDE:** Tự động mở project cùng với các cửa sổ terminal phục vụ chạy scripts tương ứng bằng `wt` (Windows Terminal) và mở trình duyệt tự động. Hỗ trợ đa IDE qua cờ lệnh (VSCode, Antigravity).
+- **Git thông minh:** Rút gọn chuỗi lệnh `git add .`, `git commit` và `git push` khép kín vào một câu lệnh duy nhất hoạt động trên thread terminal độc lập.
+- **Quản lý File & Tooling độc lập:** Đổi tên hàng loạt (`rn-files`), Xóa theo format (`del-files`, `keep-files`), tự động setup default Chrome Download Path, sinh file mẫu (`cr-files`), convert định dạng (`png->svg`, `txt->srt`).
+- **In Output Hệ Thống:** Lấy OS Infomation siêu nhanh, tra cứu lệnh cURL thần tốc, kiểm tra Path.
+- **Hệ thống Tra cứu Tích hợp:** Dùng flag `--des` sau mỗi lệnh để render ra mô tả chi tiết của lệnh đó trực tiếp trên terminal.
 
-- Python >= 3.12.0
-- Windows OS (sử dụng Windows Terminal và lệnh cmd)
-- VSCode hoặc Cursor IDE (cho tính năng mở code)
-- Git (cho các thao tác git)
+---
 
-## Cài Đặt
+## 📦 Yêu Cầu & Cài Đặt
 
-1. Clone hoặc tải repository này về
-2. Cài đặt các dependencies Python:
+### Yêu cầu nền tảng:
+
+- **Python:** `>= 3.12.0`
+- **Hệ điều hành:** Windows (sử dụng Windows Terminal, PowerShell và lệnh `cmd`)
+- **Git** đã thêm vào PATH.
+- (Tùy chọn) Cài sẵn VSCode hoặc Antigravity IDE.
+
+### Cài đặt:
+
+1. Clone hoặc tải project này về máy vào một thư mục cố định (Ví dụ: `D:/D-Documents/TOOLs/runner/`).
+2. Mở Terminal tại thư mục đó và cài đặt thư viện cần thiết:
    ```bash
    pip install -r requirements.txt
    ```
-3. Tạo file `.env` trong `D:/D-Documents/TOOLs/runner/` với nội dung:
-   ```env
-   ROOT_FOLDER_PATH=D:/D-Documents/TOOLs/runner
-   ```
-4. Thêm thư mục runner vào biến môi trường PATH để sử dụng lệnh `runner` toàn cục
+3. Khởi tạo cấu hình bằng file `.env` (xem chi tiết ở mục Cấu hình).
+4. Thêm thư mục chứa project (`runner/`) vào **Environment Variables (PATH)** để có thể gọi lệnh `runner` ở bất kỳ thư mục nào trên cmd/powershell.
 
-## Cách Sử Dụng
+---
 
-```bash
-runner [type] [action] [flags]
+## ⚙️ Cấu Hình (`.env`)
+
+Tạo một file `.env` ở thư mục gốc của project theo mẫu dưới đây:
+
+```env
+ROOT_FOLDER_PATH=D:/D-Documents/TOOLs/runner
+USEFUL_CODES_FOLDER_PATH=D:/D-Documents/TOOLs/runner/src/useful-codes
+CONTENTS_FOLDER_PATH=D:/D-Documents/TOOLs/runner/src/contents
+TEMPLATE_REPLACER_FOLDER_PATH=<Đường_dẫn_đến_Template_Replacer>
+
+# API dùng cho Auto-Gen Subtitles YouTube
+GEMINI_API_KEY=your_api_key_here
+GEMINI_MODEL=gemini-1.5-flash
+TRANSLATE_CHUNK_SIZE=30
 ```
 
-### Các Type Có Sẵn
+---
 
-- `open` - Mở thư mục trong file explorer của hệ thống
-- `code` - Mở dự án trong VSCode/Cursor
-- `git` - Thực thi thao tác git
-- `run` - Chạy ứng dụng hoặc script
-- `print` - Hiển thị thông tin
+## 📖 Cách Sử Dụng
 
-### Các Flag Có Sẵn
-
-- `-h, --help` - Hiển thị thông tin trợ giúp
-- `-m, --message` - Cung cấp message (cho git commit)
-- `-c, --cursor` - Sử dụng Cursor IDE thay vì VSCode
-- `-p, --powershell-only` - Chỉ mở thư mục trong Windows Terminal (bỏ qua IDE)
-- `-v, --value` - Giá trị đầu vào cho script bên ngoài
-
-## Các Lệnh
-
-### Lệnh Open
+### Cú pháp chung
 
 ```bash
-runner open              # Mở file runner trong VSCode
-runner open ws           # Mở thư mục working workspaces trong system folder
-runner open env          # Mở bảng điều khiển biến môi trường
+runner [<type> <action> [<value> [<extra>]]] [flags...]
 ```
 
-### Lệnh Code
+### Các Flags Toàn Cục
+
+| Flag                      | Mô tả                                                              |
+| ------------------------- | ------------------------------------------------------------------ |
+| `-h`, `--help`            | In hướng dẫn (`help.txt`) ra màn hình terminal.                    |
+| `--des`                   | In ra mô tả, giải thích chi tiết chức năng của câu lệnh hiện tại.  |
+| `-m "text"`, `--message`  | Truyền message (thường bắt buộc khi dùng chung với `git commit`).  |
+| `-a`, `--antigravity-IDE` | Cờ ép mở bằng Antigravity IDE (mặc định là VSCode).                |
+| `-p`, `--powershell-only` | Bỏ qua việc mở giao diện IDE, chỉ mở folder trên Windows Terminal. |
+
+---
+
+## 🛠 Tập Hợp Các Lệnh (31 Lệnh)
+
+### 1. TYPE `open` - Mở bằng File Explorer hệ thống
+
+- `runner open` — Mở thư mục gốc của runner.
+- `runner open ws` — Mở folder chứa VSCode Workspaces.
+- `runner open env` — Mở bảng Environment Variables (Windows).
+- `runner open proms` — Mở thư mục Prompts của Template Replacer.
+
+### 2. TYPE `code` - Mở bằng IDE (VSCode / Antigravity)
+
+- `runner code` — Mở source code runner trong IDE.
+- `runner code ws <value>` — Mở một working workspace thiết lập sẵn. VD: `ptb` (Photobooth) hoặc `tool` (GDrive Tool).
+- `runner code test` — Mở thư mục Testing sandbox.
+- `runner code ts-template` — Mở template Express TypeScript.
+- `runner code js` / `ts` / `py` — Mở các thư mục testing riêng lẻ của ngôn ngữ tương ứng.
+- `runner code nestjs` — Mở NestJS template.
+- `runner code ext` — Mở thư mục Browser Extensions.
+
+### 3. TYPE `git` - Thao tác Version Control
+
+- `runner git commit -m "<msg>"` — Tự động mở thread tab: `git add .`, `commit`, và `push`.
+
+### 4. TYPE `run` - Thực thi Script tiện ích
+
+- `runner run test-bat` — Chạy thử batch script nội bộ.
+- `runner run unikey` — Khởi động UniKey (với path cứng cài đặt).
+- `runner run cr-files` — Giao diện Interactive Tự tạo file dựa trên text templates.
+- `runner run dld-path [<folder>]` — Đặt lại Download Path an toàn cho tất cả Profile Chrome.
+- `runner run fm-sub <path.txt>` — Convert file sub dạng text sang `.srt`.
+- `runner run proms` — Kích hoạt script chỉnh sửa prompts.
+- `runner run rn-files <folder> [<prefix>]` — **Đổi tên hàng loạt**: Đổi sạch file cấp 1 thành `<prefix>-[N].ext`.
+- `runner run del-files <folder> <ext1,ext2>` — **Dọn dẹp nâng cao**: Del sạch file có các extension được chỉ định.
+- `runner run keep-files <folder> <ext>` — **Filter bảo vệ**: Chỉ giữ lại file có đuôi `ext`, xóa phần còn lại.
+
+### 5. TYPE `print` - In Info
+
+- `runner print os` — In nhanh OS Information & Hardware Data (CPU, Ram, Bios, IPs).
+- `runner print stts` — In các runner Status code description.
+- `runner print ws` — Liệt kê tên toàn bộ các file VSCode Workspaces.
+- `runner print curl` — Bảng tra cứu mẫu mã cURL (CRUD).
+- `runner print cmds` — Liệt kê Cheat-sheet list lệnh hữu ích liên quan.
+
+### 6. SCRIPTS Tiện ích Độc lập (Chạy tay / ngoài Runner Tool)
+
+_Không gọi bằng cờ `runner`, đây là các tools độc lập được tích hợp trong source._
+
+- **Generate YouTube Sub (`useful-codes/sub-youtube-video/gen_sub_file.py`)**: Crawler hút sub tiếng anh YouTube, sau đó dịch chunks song ngữ sang Vietnamese qua Gemini API và compose thành `.srt`.
+- **PNG to SVG Converter (`useful-codes/convert_png_to_svg.py`)**: Số hoá trace raster image thành vector curves bằng thư viện `vtracer`. Cấu hình cực mạnh về spline/corners.
+
+---
+
+## 🎯 Ví dụ Trực quan
 
 ```bash
-runner code              # Mở file runner trong VSCode
-runner code ws           # Mở working workspace trong VSCode và terminal
-runner code test         # Mở thư mục testing
-runner code ts-template  # Mở TypeScript template
-runner code js           # Mở thư mục testing JavaScript
-runner code ts           # Mở thư mục testing TypeScript
-runner code nestjs       # Mở NestJS template
-runner code py           # Mở thư mục testing Python
-runner code ext          # Mở thư mục browser extensions
-```
+# Xem mô tả xem lệnh "rn-files" này làm gì
+runner run rn-files --des
 
-Thêm flag `-c` hoặc `--cursor` để mở trong Cursor IDE:
-```bash
-runner code test -c      # Mở thư mục testing trong Cursor IDE
-```
+# Xoá tất cả file .tmp và .log trong folder Downloads
+runner run del-files "D:/D-Downloads/Trash" "tmp,log"
 
-### Lệnh Git
+# Mở workspace Photobooth thông qua Antigravity IDE thay vì VSCode
+runner code ws ptb -a
 
-```bash
-runner git commit -m "your commit message"  # Add, commit, và push lên origin main
-runner git remote                           # Hiển thị git remote repositories
-```
+# Lưu code đang dở và push thẳng lên repo chỉ với 1 lệnh
+runner git commit -m "feat: handle config variables"
 
-### Lệnh Run
-
-```bash
-runner run test-bat      # Chạy file batch test
-runner run unikey        # Khởi động ứng dụng Unikey
-```
-
-### Lệnh Print
-
-```bash
-runner print os          # Hiển thị thông tin OS
-runner print stts        # Hiển thị mô tả runner status
-runner print ws          # Liệt kê các VSCode workspace
-runner print curl        # Hiển thị tài liệu tham khảo lệnh cURL
-runner print dir         # Hiển thị đường dẫn thư mục runner
-runner print cmds        # Hiển thị danh sách các lệnh hữu ích
-```
-
-## Ví Dụ
-
-```bash
-# Mở workspace trong VSCode với terminal
-runner code ws
-
-# Mở workspace trong Cursor chỉ với PowerShell terminal
-runner code ws -c -p
-
-# Commit và push thay đổi
-runner git commit -m "Add new feature"
-
-# Kiểm tra git remotes
-runner git remote
-
-# Mở thư mục testing trong Cursor IDE
-runner code test --cursor
-
-# Hiển thị thông tin hệ thống
+# Print OS spec (hữu ích khi cần share logs)
 runner print os
 ```
 
-## Cấu Trúc Dự Án
+---
 
-```
-runner/
-├── src/
-│   ├── runner.py              # Điểm khởi đầu chính
-│   ├── runner_git.py          # Xử lý thao tác Git
-│   ├── runner_cURL.py         # Hiển thị tài liệu tham khảo cURL
-│   ├── runner_os_info.py      # Hiển thị thông tin OS
-│   ├── runner_print_content.py # Hiển thị file nội dung
-│   ├── runner_statuses.py     # Thông tin trạng thái
-│   ├── runner_main_ws.py      # Quản lý workspace
-│   ├── contents/              # Các file nội dung văn bản
-│   │   ├── help.txt
-│   │   ├── cURL.txt
-│   │   ├── statuses.txt
-│   │   └── list-useful-commands.txt
-│   └── useful-codes/          # Các script tiện ích
-│       ├── create_files_in_folder.py
-│       ├── print_folder_tree.py
-│       └── rename_files.py
-├── warehouse/                 # Các file lưu trữ/backup
-├── requirements.txt           # Các thư viện Python
-├── runner.cmd                 # File batch khởi động Windows
-└── README.md                  # File này
-```
-
-## Cấu Hình
-
-Công cụ sử dụng file `.env` để cấu hình. Tạo file tại:
-```
-D:/D-Documents/TOOLs/runner/.env
-```
-
-Các biến môi trường bắt buộc:
-- `ROOT_FOLDER_PATH` - Đường dẫn thư mục gốc cho dự án runner
-
-## Phát Triển
-
-### Thêm Lệnh Mới
-
-1. Định nghĩa hằng số trong [runner.py](src/runner.py):
-   ```python
-   RUNNER_TYPE_NEW = "newtype"
-   RUNNER_ACTION_NEW = "newaction"
-   ```
-
-2. Tạo hàm xử lý:
-   ```python
-   def handle_new_action():
-       # Code của bạn
-       sys.exit(0)
-   ```
-
-3. Thêm vào logic chính:
-   ```python
-   elif type_included == RUNNER_TYPE_NEW:
-       if action_included == RUNNER_ACTION_NEW:
-           handle_new_action()
-   ```
-
-### Xử Lý Lỗi
-
-Công cụ sử dụng exceptions để xử lý lỗi. Tất cả lỗi từ người dùng được bắt và hiển thị với thông báo mô tả:
-```python
-raise Exception("Thông báo lỗi")
-```
-
-## Giấy Phép
-
-Đây là công cụ tự động hóa cá nhân. Bạn có thể tự do điều chỉnh để sử dụng cho mình.
-
-## Tác Giả
-
-Được tạo ra để tự động hóa quy trình phát triển cá nhân.
-
-## Cập Nhật Lần Cuối
-
-11 tháng 1, 2026
+_Tài liệu tự động hóa - Cập nhật lần cuối: 2026-03-31_

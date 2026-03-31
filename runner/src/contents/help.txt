@@ -1,10 +1,11 @@
 ===========================================
 # Update at 29/03/2026 6h18 PM
+# Repo Link: https://github.com/codevcn/tools-box.git
 ===========================================
 # Help for runner command:
 
 # Usage:
-runner [[-h] | <type> <action> [<value> [<extra>]] [-m "message"] [-a] [-p]]
+runner [[-h] | <type> <action> [<value> [<extra>]] [-m "message"] [-a] [-p] [--des]]
 
 # Available flags:
 -h, --help        :print this help.
@@ -12,6 +13,7 @@ runner [[-h] | <type> <action> [<value> [<extra>]] [-m "message"] [-a] [-p]]
 -v, --value       :input value for external script.
 -a                :using Antigravity IDE instead of VSCode.
 -p                :only open in PowerShell, not IDE.
+--des             :print description of typing commands.
 
 # Available types:
 open              :to open in system folder.
@@ -64,4 +66,5 @@ git               :to run git command.
 The command `runner open vscode-ws` will open the working workspaces in vscode.
 The command `runner run rn-files "D:/D-Documents/Làm về TikTok" "tiktok"` will rename files with prefix "tiktok" in folder "D:/D-Documents/Làm về TikTok".
 The command `runner git commit -m "update git command"` will execute git add all files and commit with a message and push with upstream.
+The command `runner run del-files --des` will print description of del-files command.
 ===========================================

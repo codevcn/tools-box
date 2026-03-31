@@ -122,7 +122,7 @@ def print_runner_files_root_dir():
 
 
 def print_useful_commands():
-    print_content("list-useful-commands.txt")
+    print_content("list_useful_commands.txt")
 
 
 def run_git_command(git_type, user_message=None):
@@ -342,6 +342,20 @@ def keep_files(folder_path: str | None = None, ext: str | None = None):
     sys.exit(0)
 
 
+def print_feature_description(cmd_type: str | None, action: str | None):
+    cmd_args = [
+        "python",
+        f"{RUNNER_USEFUL_CODES_PREFIX_PATH}/print_feature_description.py",
+    ]
+    if cmd_type:
+        cmd_args.extend(["--type", cmd_type])
+    if action:
+        cmd_args.extend(["--action", action])
+        
+    subprocess.run(cmd_args, shell=True)
+    sys.exit(0)
+
+
 # --- Main ---
 
 if __name__ == "__main__":
@@ -393,6 +407,11 @@ if __name__ == "__main__":
             action="store_true",
             help="Only open folders in Windows Terminal (skip IDE)",
         )
+        parser.add_argument(
+            "--des",
+            action="store_true",
+            help="Show feature description from app_features.yml",
+        )
         args = parser.parse_args()
 
         type_included = args.type
@@ -400,6 +419,9 @@ if __name__ == "__main__":
         value_included = args.value
         extra_included = args.extra
         user_message_included = args.user_message
+
+        if args.des:
+            print_feature_description(type_included, action_included)
 
         # for coding
         antigravity_included = args.antigravity_IDE
