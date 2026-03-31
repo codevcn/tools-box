@@ -92,3 +92,9 @@ git update-index --add --chmod=+x deploy.sh
 
 # Chạy lệnh để đổi từ CRLF sang LF
 git config --global core.autocrlf false
+
+############################################################
+# 5) GRANT PERMISSION TO USE SSH KEY FOR REMOTE VPS
+############################################################
+icacls "absolute/path/to/key" /inheritance:r
+icacls "absolute/path/to/key" /grant:r "$($env:username):R"

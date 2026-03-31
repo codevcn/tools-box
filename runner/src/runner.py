@@ -316,15 +316,15 @@ def rename_files(folder_path: str | None = None, prefix: str | None = None):
     sys.exit(0)
 
 
-def delete_files(folder_path: str | None = None, ext: str | None = None):
+def delete_files(folder_path: str | None = None, ext_list: str | None = None):
     cmd_args = [
         "py",
         f"{RUNNER_USEFUL_CODES_PREFIX_PATH}/delete_files.py",
     ]
     if folder_path:
         cmd_args.append(folder_path)
-    if ext:
-        cmd_args.append(ext)
+    if ext_list:
+        cmd_args.append(ext_list)
     subprocess.run(cmd_args, shell=True)
     sys.exit(0)
 
