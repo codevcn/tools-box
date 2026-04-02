@@ -72,9 +72,10 @@ def main():
         # Tự động detect prefix từ các file có dạng <prefix>-<number>.<ext>
         prefix = detect_prefix(files)
         if not prefix:
-            print(">>> Lỗi: No prefix provided and no valid filename pattern detected.")
-            sys.exit(1)
-        print(f'>>> Tự động phát hiện prefix: "{prefix}"')
+            prefix = os.path.basename(os.path.abspath(folder_path))
+            print(f'>>> Không tìm thấy prefix, sử dụng tên folder làm prefix: "{prefix}"')
+        else:
+            print(f'>>> Tự động phát hiện prefix: "{prefix}"')
 
     print(f">>> Tìm thấy {len(files)} file. Bắt đầu đổi tên...")
 

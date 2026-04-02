@@ -91,7 +91,7 @@ def print_content(content_filename):
     subprocess.run(
         [
             "python",
-            f"{RUNNER_ROOT_FOLDER}/src/runner_print_content.py",
+            f"{RUNNER_ROOT_FOLDER}/src/system-codes/runner_print_content.py",
             content_filename,
         ],
         check=True,
@@ -128,7 +128,7 @@ def print_useful_commands():
 def run_git_command(git_type, user_message=None):
     args = [
         "python",
-        f"{RUNNER_ROOT_FOLDER}/src/runner_git.py",
+        f"{RUNNER_ROOT_FOLDER}/src/system-codes/runner_git.py",
         git_type,
     ]
     if user_message:
@@ -147,7 +147,7 @@ def open_runner_file_in_system_folder():
 
 def print_statuses_info():
     subprocess.run(
-        ["python", f"{RUNNER_ROOT_FOLDER}/src/runner_statuses.py"],
+        ["python", f"{RUNNER_ROOT_FOLDER}/src/system-codes/runner_statuses.py"],
         check=True,
         shell=True,
     )
@@ -160,7 +160,7 @@ def print_help():
 
 def print_cURL():
     subprocess.run(
-        ["python", f"{RUNNER_ROOT_FOLDER}/src/runner_cURL.py"],
+        ["python", f"{RUNNER_ROOT_FOLDER}/src/useful-codes/runner_cURL.py"],
         check=True,
         shell=True,
     )
@@ -187,7 +187,7 @@ def open_working_vscode(ide_prefix: str, value: str, powershell_only=False):
         raise Exception("IDE prefix is missing.")
     cmd_args = [
         "python",
-        f"{RUNNER_ROOT_FOLDER}/src/runner_main_ws.py",
+        f"{RUNNER_ROOT_FOLDER}/src/useful-codes/runner_main_ws.py",
         ide_prefix,
     ]
     if value:
@@ -235,7 +235,7 @@ def run_test_bat(*args):
 
 def print_os_info():
     subprocess.run(
-        ["python", f"{RUNNER_ROOT_FOLDER}/src/runner_os_info.py"],
+        ["python", f"{RUNNER_ROOT_FOLDER}/src/useful-codes/runner_os_info.py"],
         check=True,
         shell=True,
     )
@@ -351,7 +351,7 @@ def print_feature_description(cmd_type: str | None, action: str | None):
         cmd_args.extend(["--type", cmd_type])
     if action:
         cmd_args.extend(["--action", action])
-        
+
     subprocess.run(cmd_args, shell=True)
     sys.exit(0)
 
