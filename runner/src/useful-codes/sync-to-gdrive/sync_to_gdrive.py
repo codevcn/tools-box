@@ -1,0 +1,316 @@
+import sys
+import subprocess
+import os
+import json
+from dotenv import load_dotenv
+
+load_dotenv(dotenv_path="D:/D-Documents/TOOLs/runner/.env")
+
+RUNNER_USEFUL_CODES_FOLDER_PATH = os.getenv("USEFUL_CODES_FOLDER_PATH")
+
+GDRIVE_ACTION_SYNC = "sync"
+GDRIVE_ACTION_GUIDE = "guide"
+GDRIVE_ACTION_RESET = "reset"
+
+# Tên tệp cấu hình JSON sẽ lưu trữ thông tin remote
+CONFIG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "configs.json")
+
+
+def load_remote_name():
+    """Đọc tên remote từ tệp JSON. Trả về None nếu tệp không tồn tại."""
+    if os.path.exists(CONFIG_FILE):
+        try:
+            with open(CONFIG_FILE, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                return data.get("remote_name")
+        except (json.JSONDecodeError, KeyError):
+            return None
+    return None
+
+
+def save_remote_name(remote_name):
+    """Lưu tên remote vào tệp JSON để sử dụng cho lần sau."""
+    # Đảm bảo tên remote có dấu hai chấm ở cuối nếu người dùng quên nhập
+    if not remote_name.endswith(":"):
+        remote_name += ":"
+
+    data = {"remote_name": remote_name}
+    with open(CONFIG_FILE, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=4)
+    print(f"Đã lưu cấu hình remote '{remote_name}' vào tệp {CONFIG_FILE}.")
+
+
+def check_remote_exists(remote_name):
+    """Kiểm tra xem tên remote có thực sự tồn tại trong hệ thống rclone hay không."""
+    try:
+        result = subprocess.run(
+            ["rclone", "listremotes"], stdout=subprocess.PIPE, text=True, check=True
+        )
+        return remote_name in result.stdout
+    except subprocess.CalledProcessError:
+        return False
+
+
+def run_setup_flow():
+    """Luồng thiết lập lần đầu: Chạy rclone config và lưu tên vào JSON."""
+    print("-" * 50)
+    print("# Hệ thống chưa được cấu hình remote Google Drive.")
+    print("  1. Sau đây, giao diện cấu hình của rclone sẽ hiện ra.")
+    print(
+        "  2. Bạn hãy chọn 'n' để tạo mới và làm theo hướng dẫn cấp quyền truy cập Google Drive cho rclone."
+    )
+    print(
+        "# Chỉ cần làm bước này lần đầu tiên, những lần sau hệ thống sẽ tự động sử dụng cấu hình đã lưu."
+    )
+    print("# Tùy chọn:")
+    print("  - Chạy lệnh 'runner gdrive guide' để xem hướng dẫn cấp quyền truy cập")
+    print("-" * 50)
+
+    try:
+        try:
+            result_before = subprocess.run(
+                ["rclone", "listremotes"], stdout=subprocess.PIPE, text=True, check=True
+            )
+            remotes_before = set(
+                [
+                    r.strip()
+                    for r in result_before.stdout.strip().split("\n")
+                    if r.strip()
+                ]
+            )
+        except subprocess.CalledProcessError:
+            remotes_before = set()
+
+        subprocess.run(["rclone", "config"], check=True)
+
+        try:
+            result_after = subprocess.run(
+                ["rclone", "listremotes"], stdout=subprocess.PIPE, text=True, check=True
+            )
+            remotes_after = set(
+                [
+                    r.strip()
+                    for r in result_after.stdout.strip().split("\n")
+                    if r.strip()
+                ]
+            )
+        except subprocess.CalledProcessError:
+            remotes_after = set()
+
+        print("\n" + "=" * 50)
+
+        new_remotes = remotes_after - remotes_before
+
+        if len(new_remotes) == 1:
+            new_name = list(new_remotes)[0].rstrip(":")
+            print(f"Đã tự động nhận diện remote mới tạo: {new_name}")
+            save_remote_name(new_name)
+            return load_remote_name()
+        elif len(new_remotes) > 1:
+            new_name = list(new_remotes)[0].rstrip(":")
+            print(f"Đã tự động nhận diện remote mới tạo: {new_name}")
+            save_remote_name(new_name)
+            return load_remote_name()
+        elif len(remotes_after) == 1:
+            new_name = list(remotes_after)[0].rstrip(":")
+            print(f"Hệ thống nhận thấy có sẵn 1 remote: {new_name}")
+            save_remote_name(new_name)
+            return load_remote_name()
+        elif len(remotes_after) > 1:
+            print("Hệ thống phát hiện nhiều remote. Hãy chọn một remote để sử dụng:")
+            remotes_list = list(remotes_after)
+            for idx, r in enumerate(remotes_list):
+                print(f"[{idx + 1}] {r.rstrip(':')}")
+
+            while True:
+                choice = input("Nhập số thứ tự: ").strip()
+                try:
+                    choice_idx = int(choice) - 1
+                    if 0 <= choice_idx < len(remotes_list):
+                        new_name = remotes_list[choice_idx].rstrip(":")
+                        save_remote_name(new_name)
+                        return load_remote_name()
+                except ValueError:
+                    pass
+                print("Lựa chọn không hợp lệ, vui lòng thử lại.")
+        else:
+            print("Lỗi: Bạn chưa thiết lập thành công remote nào trong rclone!")
+            sys.exit(1)
+
+    except subprocess.CalledProcessError:
+        print("Đã xảy ra lỗi trong quá trình cấu hình rclone.")
+        sys.exit(1)
+
+
+def sync_to_gdrive(source_path, dest_path, remote_name):
+    """Thực hiện lệnh đồng bộ dữ liệu."""
+    if not os.path.exists(source_path):
+        print(f"Lỗi: Thư mục nguồn '{source_path}' không tồn tại.")
+        sys.exit(1)
+
+    # Đảm bảo đường dẫn đích bắt đầu bằng tên remote từ JSON
+    if not dest_path.startswith(remote_name):
+        remote_dest = f"{remote_name}{dest_path}"
+    else:
+        remote_dest = dest_path
+
+    print(f"Bắt đầu đồng bộ dữ liệu lên Google Drive...")
+    print(f"  Remote sử dụng: {remote_name}")
+    print(f"  Nguồn: {os.path.abspath(source_path)}")
+    print(f"  Đích: {remote_dest}")
+    print("-" * 50)
+
+    command = ["rclone", "sync", source_path, remote_dest, "--progress"]
+
+    try:
+        subprocess.run(command, check=True)
+        print("-" * 50)
+        print("Đồng bộ hoàn tất thành công!")
+    except subprocess.CalledProcessError as e:
+        print(f"Lỗi khi thực thi rclone: {e}")
+
+
+def display_auth_guide():
+    subprocess.Popen(
+        ["notepad", f"{RUNNER_USEFUL_CODES_FOLDER_PATH}/sync-to-gdrive/AUTH_GUIDE.txt"],
+        shell=True,
+    )
+    sys.exit(0)
+
+
+def reset_config():
+    print("Đang tiến hành làm mới cấu hình rclone...")
+
+    try:
+        result = subprocess.run(
+            ["rclone", "listremotes"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            check=True,
+        )
+        remotes = [
+            r.strip().rstrip(":")
+            for r in result.stdout.strip().split("\n")
+            if r.strip()
+        ]
+    except subprocess.CalledProcessError:
+        remotes = []
+
+    print("\nChọn 1 remote để xóa:")
+    if remotes:
+        for r in remotes:
+            print(f"- {r}")
+    else:
+        print("(Không có remote nào được tìm thấy)")
+
+    choice = input("\nNhập tên remote để xóa (để trống để xóa toàn bộ): ").strip()
+
+    if choice:
+        remote_to_delete = choice.rstrip(":")
+        try:
+            subprocess.run(["rclone", "config", "delete", remote_to_delete], check=True)
+            print(f"Đã xóa cấu hình của remote: {remote_to_delete}")
+
+            current_local = load_remote_name()
+            if current_local and current_local.replace(":", "") == remote_to_delete:
+                if os.path.exists(CONFIG_FILE):
+                    os.remove(CONFIG_FILE)
+                    print(
+                        f"Đã xóa kèm file configs.json nội bộ do trùng với remote vừa xóa."
+                    )
+        except subprocess.CalledProcessError:
+            print(
+                f"Lỗi: Không tìm thấy hoặc không thể xóa remote '{remote_to_delete}'."
+            )
+    else:
+        confirm = (
+            input(
+                "Cảnh báo: Chuẩn bị xóa toàn bộ nội dung trong file cấu hình rclone, bạn có chắc muốn xóa chứ? Nhập 'y' để xóa, nhập 'n' để bỏ qua: "
+            )
+            .strip()
+            .lower()
+        )
+        if confirm == "y":
+            try:
+                result = subprocess.run(
+                    ["rclone", "config", "file"],
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    text=True,
+                    check=True,
+                )
+                output = result.stdout
+
+                lines = output.strip().split("\n")
+                config_path = None
+                for i, line in enumerate(lines):
+                    if "Configuration file is stored at:" in line:
+                        if i + 1 < len(lines):
+                            config_path = lines[i + 1].strip()
+                        break
+
+                if config_path and os.path.exists(config_path):
+                    os.remove(config_path)
+                    print(f"Đã xóa file cấu hình rclone tại: {config_path}")
+                else:
+                    print(
+                        "Không tìm thấy file cấu hình rclone hoặc nó đã bị xóa từ trước."
+                    )
+
+            except subprocess.CalledProcessError as e:
+                print(f"Lỗi khi chạy lệnh rclone config file: {e}")
+            except Exception as e:
+                print(f"Lỗi khi xóa file cấu hình rclone: {e}")
+
+            if os.path.exists(CONFIG_FILE):
+                try:
+                    os.remove(CONFIG_FILE)
+                    print(f"Đã xóa file cấu hình nội bộ tại: {CONFIG_FILE}")
+                except Exception as e:
+                    print(f"Lỗi khi xóa {CONFIG_FILE}: {e}")
+
+            print("Quá trình reset toàn bộ hoàn tất!")
+        else:
+            print("Đã bỏ qua xóa toàn bộ file cấu hình.")
+
+    sys.exit(0)
+
+
+def switch_actions():
+    action = sys.argv[1] if len(sys.argv) > 1 else None
+
+    if action == GDRIVE_ACTION_GUIDE:
+        display_auth_guide()
+    elif action == GDRIVE_ACTION_RESET:
+        reset_config()
+    elif action == GDRIVE_ACTION_SYNC:
+        if len(sys.argv) < 4:
+            print('Cú pháp: py sync_to_gdrive.py sync "<folder nguồn>" "<folder đích>"')
+            sys.exit(1)
+
+        source_dir = sys.argv[2]
+        dest_dir = sys.argv[3]
+
+        # Bước 1: Lấy tên remote từ tệp JSON
+        rclone_remote = load_remote_name()
+
+        # Bước 2: Nếu chưa có JSON hoặc remote không tồn tại, yêu cầu thiết lập
+        if not rclone_remote or not check_remote_exists(rclone_remote):
+            rclone_remote = run_setup_flow()
+
+        # Bước 3: Tiến hành đồng bộ
+        sync_to_gdrive(source_dir, dest_dir, rclone_remote)
+    else:
+        print(f"Lỗi: Không tìm thấy hành động '{action}'.")
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    print("Kiểm tra các tham số đầu vào...")
+
+    if len(sys.argv) < 2:
+        print("Cú pháp: py sync_to_gdrive.py <action> ...")
+        sys.exit(1)
+
+    switch_actions()

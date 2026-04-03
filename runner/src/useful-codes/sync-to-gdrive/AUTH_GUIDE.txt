@@ -1,0 +1,381 @@
+==================================================================
+HƯỚNG DẪN LẤY CLIENT_ID VÀ CLIENT_SECRET CHO RCLONE
+==================================================================
+(Dùng khi chạy lần đầu và rclone hỏi client_id / client_secret)
+
+----------------------------------------------------
+TẠI SAO CẦN LÀM BƯỚC NÀY?
+----------------------------------------------------
+Khi chạy script lần đầu, rclone sẽ mở giao diện cấu hình và hỏi:
+
+    Option client_id.
+    Google Application Client Id
+    client_id>
+
+Nếu bạn bỏ trống (nhấn Enter), rclone sẽ dùng key mặc định của họ.
+Key mặc định này có thể bị lỗi:
+    - Dùng chung với nhiều người nên bị chia sẻ băng thông (tốc độ chậm bất thường)
+    - Lỗi 403: access_denied  ("Rclone chưa hoàn tất quy trình xác minh")
+    - Lỗi 401: invalid_client ("The OAuth client was not found")
+
+Vì vậy bạn cần tự tạo Client ID và Client Secret riêng trên Google Cloud.
+
+----------------------------------------------------
+CÁC BƯỚC THỰC HIỆN (mất khoảng 5-10 phút)
+----------------------------------------------------
+
+BƯỚC 1: TẠO PROJECT TRÊN GOOGLE CLOUD
+--------------------------------------
+1. Truy cập: https://console.cloud.google.com/
+2. Đăng nhập bằng Gmail của bạn.
+3. Click "Select a project" (góc trên bên trái) → "New Project".
+4. Đặt tên project (ví dụ: rclone-gdrive) → Click "Create".
+5. Đảm bảo project mới vừa tạo đang được chọn.
+
+BƯỚC 2: BẬT GOOGLE DRIVE API
+------------------------------
+1. Trong menu bên trái, vào "APIs & Services" → "Library".
+2. Tìm kiếm: "Google Drive API".
+3. Click vào kết quả → Click nút "Enable".
+
+BƯỚC 3: CẤU HÌNH OAUTH CONSENT SCREEN
+----------------------------------------
+(Bước này bắt buộc trước khi tạo credentials)
+
+1. Vào "APIs & Services" → "OAuth consent screen".
+2. Chọn "External" → Click "Create".
+3. Điền các thông tin bắt buộc:
+   - App name: điền tên tùy ý (ví dụ: rclone-sync)
+   - User support email: chọn Gmail của bạn
+   - Developer contact information: nhập Gmail của bạn
+4. Click "Save and Continue".
+5. Ở bước "Scopes": bỏ qua, click "Save and Continue".
+6. Ở bước "Test users":
+   - Click "+ Add Users"
+   - Nhập Gmail của bạn (ví dụ: yourname@gmail.com)
+   - Click "Add" → "Save and Continue"
+   *** QUAN TRỌNG: Nếu không thêm Gmail vào đây,
+       Google sẽ chặn với lỗi 403: access_denied ***
+7. Click "Back to Dashboard".
+
+BƯỚC 4: TẠO OAUTH CLIENT ID
+-----------------------------
+1. Vào "APIs & Services" → "Credentials".
+2. Click "+ Create Credentials" → "OAuth client ID".
+3. Ở mục "Application type": chọn "Desktop app".
+4. Đặt tên tùy ý (ví dụ: rclone-desktop) → Click "Create".
+5. Google hiển thị popup với thông tin:
+   - Your Client ID:     <CLIENT_ID_ĐÃ_NHẬP>
+   - Your Client Secret: <CLIENT_SECRET_ĐÃ_NHẬP>
+6. Copy và lưu lại 2 giá trị này.
+
+BƯỚC 5: ĐIỀN VÀO RCLONE KHI ĐƯỢC HỎI
+---------------------------------------
+Khi rclone hỏi trong terminal:
+
+    client_id> [dán Client ID vào đây]
+    client_secret> [dán Client Secret vào đây]
+    scope> 1   <-- chọn 1 (Full access - drive)
+    service_account_file> [nhấn Enter bỏ qua]
+    Edit advanced config? > [nhập "n" (No) bỏ qua]
+    Use web browser to automatically authenticate? > [nhập "y" (Yes)]
+
+Sau đó rclone sẽ tự mở trình duyệt → đăng nhập Gmail → xác nhận quyền truy cập.
+Nếu trình duyệt không tự mở, copy link hiện trong terminal và dán vào trình duyệt thủ công.
+
+BƯỚC 6: CẤU HÌNH SHARED DRIVE (TÙY CHỌN)
+----------------------------------------------------
+Configure this as a Shared Drive (Team Drive)?
+  - Nhập "n" (No) để bỏ qua
+
+BƯỚC 7: CẤU HÌNH TÊN REMOTE
+----------------------------------------------------
+Keep this "codevcn-dell-pc" remote?
+  - Nhập "y" (Yes) để xác nhận
+
+----------------------------------------------------
+===> KẾT THÚC CẤU HÌNH RCLONE <===
+----------------------------------------------------
+----------------------------------------------------
+LƯU Ý QUAN TRỌNG
+----------------------------------------------------
+- Nhớ chọn scope> 1 (Full access - drive), KHÔNG chọn scope 4 (drive.appfolder).
+  Scope 4 chỉ lưu data ẩn, không thấy file trên Google Drive website.
+
+- Redirect URL trong GCP phải để mặc định:
+  http://127.0.0.1:53682/
+  (rclone tự dùng URL này, không cần sửa)
+
+- Client ID và Client Secret được lưu tự động vào file cấu hình rclone:
+  C:\Users\<tên_user>\AppData\Roaming\rclone\rclone.conf
+  Bạn không cần nhập lại ở những lần chạy tiếp theo.
+
+==================================================================
+KỊCH BẢN TRƯỚC ĐÂY ĐÃ THỰC HIỆN
+==================================================================
+PS C:\Users\dell> runner gdrive sync "D:\D-Downloads\tiktok-beta\outfits" "oke tôi là dev"
+
+C:\Users\dell>py D:/D-Documents/TOOLs/runner/src/runner.py gdrive sync D:\D-Downloads\tiktok-beta\outfits "oke tôi là dev"
+Kiểm tra các tham số đầu vào...
+--------------------------------------------------
+# Hệ thống chưa được cấu hình remote Google Drive.
+  1. Sau đây, giao diện cấu hình của rclone sẽ hiện ra.
+  2. Bạn hãy chọn 'n' để tạo mới và làm theo hướng dẫn cấp quyền truy cập Google Drive cho rclone.
+# Chỉ cần làm bước này lần đầu tiên, những lần sau hệ thống sẽ tự động sử dụng cấu hình đã lưu.
+# Tùy chọn:
+  - Chạy lệnh 'runner gdrive guide' để xem hướng dẫn cấp quyền truy cập
+--------------------------------------------------
+2026/04/03 14:11:50 NOTICE: Config file "C:\\Users\\dell\\AppData\\Roaming\\rclone\\rclone.conf" not found - using defaults
+2026/04/03 14:11:50 NOTICE: Config file "C:\\Users\\dell\\AppData\\Roaming\\rclone\\rclone.conf" not found - using defaults
+No remotes found, make a new one?
+n) New remote
+s) Set configuration password
+q) Quit config
+n/s/q> n
+
+Enter name for new remote.
+name> codevcn-dell-pc
+
+Option Storage.
+Type of storage to configure.
+Choose a number from below, or type in your own value.
+ 1 / 1Fichier
+   \ (fichier)
+ 2 / Akamai NetStorage
+   \ (netstorage)
+ 3 / Alias for an existing remote
+   \ (alias)
+ 4 / Amazon S3 Compliant Storage Providers including AWS, Alibaba, ArvanCloud, Ceph, ChinaMobile, Cloudflare, Cubbit, DigitalOcean, Dreamhost, Exaba, FileLu, FlashBlade, GCS, Hetzner, HuaweiOBS, IBMCOS, IDrive, Intercolo, IONOS, Leviia, Liara, Linode, LyveCloud, Magalu, Mega, Minio, Netease, Outscale, OVHcloud, Petabox, Qiniu, Rabata, RackCorp, Rclone, Scaleway, SeaweedFS, Selectel, Servercore, SpectraLogic, StackPath, Storj, Synology, TencentCOS, Wasabi, Zata, Other
+   \ (s3)
+ 5 / Backblaze B2
+   \ (b2)
+ 6 / Better checksums for other remotes
+   \ (hasher)
+ 7 / Box
+   \ (box)
+ 8 / Cache a remote
+   \ (cache)
+ 9 / Citrix Sharefile
+   \ (sharefile)
+10 / Cloudinary
+   \ (cloudinary)
+11 / Combine several remotes into one
+   \ (combine)
+12 / Compress a remote
+   \ (compress)
+13 / DOI datasets
+   \ (doi)
+14 / Dropbox
+   \ (dropbox)
+15 / Encrypt/Decrypt a remote
+   \ (crypt)
+16 / Enterprise File Fabric
+   \ (filefabric)
+17 / FTP
+   \ (ftp)
+18 / FileLu Cloud Storage
+   \ (filelu)
+19 / Files.com
+   \ (filescom)
+20 / Gofile
+   \ (gofile)
+21 / Google Cloud Storage (this is not Google Drive)
+   \ (google cloud storage)
+22 / Google Drive
+   \ (drive)
+23 / Google Photos
+   \ (google photos)
+24 / HTTP
+   \ (http)
+25 / Hadoop distributed file system
+   \ (hdfs)
+26 / HiDrive
+   \ (hidrive)
+27 / ImageKit.io
+   \ (imagekit)
+28 / In memory object storage system.
+   \ (memory)
+29 / Internet Archive
+   \ (internetarchive)
+30 / Jottacloud
+   \ (jottacloud)
+31 / Koofr, Digi Storage and other Koofr-compatible storage providers
+   \ (koofr)
+32 / Linkbox
+   \ (linkbox)
+33 / Local Disk
+   \ (local)
+34 / Mail.ru Cloud
+   \ (mailru)
+35 / Mega
+   \ (mega)
+36 / Microsoft Azure Blob Storage
+   \ (azureblob)
+37 / Microsoft Azure Files
+   \ (azurefiles)
+38 / Microsoft OneDrive
+   \ (onedrive)
+39 / OpenDrive
+   \ (opendrive)
+40 / OpenStack Swift (Rackspace Cloud Files, Blomp Cloud Storage, Memset Memstore, OVH)
+   \ (swift)
+41 / Oracle Cloud Infrastructure Object Storage
+   \ (oracleobjectstorage)
+42 / Pcloud
+   \ (pcloud)
+43 / PikPak
+   \ (pikpak)
+44 / Pixeldrain Filesystem
+   \ (pixeldrain)
+45 / Proton Drive
+   \ (protondrive)
+46 / Put.io
+   \ (putio)
+47 / QingCloud Object Storage
+   \ (qingstor)
+48 / Quatrix by Maytech
+   \ (quatrix)
+49 / Read archives
+   \ (archive)
+50 / SMB / CIFS
+   \ (smb)
+51 / SSH/SFTP
+   \ (sftp)
+52 / Sia Decentralized Cloud
+   \ (sia)
+53 / Storj Decentralized Cloud Storage
+   \ (storj)
+54 / Sugarsync
+   \ (sugarsync)
+55 / Transparently chunk/split large files
+   \ (chunker)
+56 / Uloz.to
+   \ (ulozto)
+57 / Union merges the contents of several upstream fs
+   \ (union)
+58 / Uptobox
+   \ (uptobox)
+59 / WebDAV
+   \ (webdav)
+60 / Yandex Disk
+   \ (yandex)
+61 / Zoho
+   \ (zoho)
+62 / iCloud Drive
+   \ (iclouddrive)
+63 / premiumize.me
+   \ (premiumizeme)
+64 / seafile
+   \ (seafile)
+Storage> 22
+
+Option client_id.
+Google Application Client Id
+Setting your own is recommended.
+See https://rclone.org/drive/#making-your-own-client-id for how to create your own.
+If you leave this blank, it will use an internal key which is low performance.
+Enter a value. Press Enter to leave empty.
+client_id> <CLIENT_ID_ĐÃ_NHẬP>
+
+Option client_secret.
+OAuth Client Secret.
+Leave blank normally.
+Enter a value. Press Enter to leave empty.
+client_secret> <CLIENT_SECRET_ĐÃ_NHẬP>
+
+Option scope.
+Comma separated list of scopes that rclone should use when requesting access from drive.
+Choose a number from below, or type in your own value.
+Press Enter to leave empty.
+ 1 / Full access all files, excluding Application Data Folder.
+   \ (drive)
+ 2 / Read-only access to file metadata and file contents.
+   \ (drive.readonly)
+   / Access to files created by rclone only.
+ 3 | These are visible in the drive website.
+   | File authorization is revoked when the user deauthorizes the app.
+   \ (drive.file)
+   / Allows read and write access to the Application Data folder.
+ 4 | This is not visible in the drive website.
+   \ (drive.appfolder)
+   / Allows read-only access to file metadata but
+ 5 | does not allow any access to read or download file content.
+   \ (drive.metadata.readonly)
+scope> 1
+
+Option service_account_file.
+Service Account Credentials JSON file path.
+Leave blank normally.
+Needed only if you want use SA instead of interactive login.
+Leading `~` will be expanded in the file name as will environment variables such as `${RCLONE_CONFIG_DIR}`.
+Enter a value. Press Enter to leave empty.
+service_account_file>
+
+Edit advanced config?
+y) Yes
+n) No (default)
+y/n>
+
+Use web browser to automatically authenticate rclone with remote?
+ * Say Y if the machine running rclone has a web browser you can use
+ * Say N if running rclone on a (remote) machine without web browser access
+If not sure try Y. If Y failed, try N.
+
+y) Yes (default)
+n) No
+y/n>
+
+2026/04/03 14:12:11 NOTICE: Make sure your Redirect URL is set to "http://127.0.0.1:53682/" in your custom config.
+2026/04/03 14:12:11 NOTICE: If your browser doesn't open automatically go to the following link: http://127.0.0.1:53682/auth?state=RA2GLH7Y0eTzBrBFR4YToQ
+2026/04/03 14:12:11 NOTICE: Log in and authorize rclone for access
+2026/04/03 14:12:11 NOTICE: Waiting for code...
+2026/04/03 14:12:17 NOTICE: Got code
+Configure this as a Shared Drive (Team Drive)?
+
+y) Yes
+n) No (default)
+y/n>
+
+Configuration complete.
+Options:
+- type: drive
+- client_id: <CLIENT_ID_ĐÃ_NHẬP>
+- client_secret: <CLIENT_SECRET_ĐÃ_NHẬP>
+- scope: drive
+- token: <TOKEN_DATA>
+- team_drive:
+Keep this "codevcn-dell-pc" remote?
+y) Yes this is OK (default)
+e) Edit this remote
+d) Delete this remote
+y/e/d>
+
+Current remotes:
+
+Name                 Type
+====                 ====
+codevcn-dell-pc      drive
+
+e) Edit existing remote
+n) New remote
+d) Delete remote
+r) Rename remote
+c) Copy remote
+s) Set configuration password
+q) Quit config
+e/n/d/r/c/s/q> q
+
+==================================================
+Đã tự động nhận diện remote mới tạo: codevcn-dell-pc
+Đã lưu cấu hình remote 'codevcn-dell-pc:' vào tệp D:\D-Documents\TOOLs\runner\src\useful-codes\sync-to-gdrive\configs.json.
+Bắt đầu đồng bộ dữ liệu lên Google Drive...
+  Remote sử dụng: codevcn-dell-pc:
+  Nguồn: D:\D-Downloads\tiktok-beta\outfits
+  Đích: codevcn-dell-pc:oke tôi là dev
+--------------------------------------------------
+Transferred:              0 B / 0 B, -, 0 B/s, ETA -
+Checks:                19 / 19, 100%, Listed 40
+Elapsed time:         0.6s
+--------------------------------------------------
+Đồng bộ hoàn tất thành công!
+PS C:\Users\dell>

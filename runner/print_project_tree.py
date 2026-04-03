@@ -2,7 +2,7 @@ import os
 
 
 def print_tree(root_path, file_handle, prefix="", exclude_dirs=None):
-    if exclude_dirs is Nonee:
+    if exclude_dirs is None:
         exclude_dirs = []
 
     entries = sorted(os.listdir(root_path))

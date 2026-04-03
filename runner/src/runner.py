@@ -13,10 +13,9 @@ RUNNER_TYPE_CODE = "code"
 RUNNER_TYPE_RUN = "run"
 RUNNER_TYPE_PRINT = "print"
 RUNNER_TYPE_GIT = "git"
+RUNNER_TYPE_GDRIVE = "gdrive"
 
 # --- Actions ---
-# google drive
-RUNNER_GDRIVE = "gdrive"
 # open
 RUNNER_OPEN_ENV = "env"
 RUNNER_OPEN_PROMPTS_FOLDER = "proms"
@@ -66,7 +65,7 @@ RUNNER_WARNING_FLAG_WRONG = "WRONG-FLAG"
 RUNNER_WARNING_FLAG_MISSING = "MISSING-FLAG"
 
 RUNNER_ROOT_FOLDER = os.getenv("ROOT_FOLDER_PATH")
-RUNNER_USEFUL_CODES_PREFIX_PATH = os.getenv("USEFUL_CODES_FOLDER_PATH") or ""
+RUNNER_USEFUL_CODES_FOLDER_PATH = os.getenv("USEFUL_CODES_FOLDER_PATH") or ""
 
 TEMPLATE_REPLACER_FOLDER_PATH = os.getenv("TEMPLATE_REPLACER_FOLDER_PATH") or ""
 
@@ -74,13 +73,16 @@ TEMPLATE_REPLACER_FOLDER_PATH = os.getenv("TEMPLATE_REPLACER_FOLDER_PATH") or ""
 
 
 def gdrive_execute(gdrive_command, *args):
+    cmd_args = [
+        "python",
+        f"{RUNNER_USEFUL_CODES_FOLDER_PATH}/sync-to-gdrive/sync_to_gdrive.py",
+    ]
+    if gdrive_command is not None:
+        cmd_args.append(gdrive_command)
+    cmd_args.extend([arg for arg in args if arg is not None])
+
     subprocess.run(
-        [
-            "python",
-            f"{RUNNER_ROOT_FOLDER}/src/runner_gdrive.py",
-            gdrive_command,
-        ]
-        + list(args),
+        cmd_args,
         check=True,
         shell=True,
     )
@@ -206,7 +208,7 @@ def print_vscode_workspaces(workspace_path):
     subprocess.run(
         [
             "python",
-            os.path.join(RUNNER_USEFUL_CODES_PREFIX_PATH, "print_runner_folder.py"),
+            os.path.join(RUNNER_USEFUL_CODES_FOLDER_PATH, "print_runner_folder.py"),
             workspace_path,
         ],
         check=True,
@@ -266,7 +268,7 @@ def open_testing_python_folder_in_vscode(ide_prefix):
 
 def create_files_in_folder():
     subprocess.run(
-        ["py", f"{RUNNER_USEFUL_CODES_PREFIX_PATH}/create_files_in_folder.py"],
+        ["py", f"{RUNNER_USEFUL_CODES_FOLDER_PATH}/create_files_in_folder.py"],
         shell=True,
     )
     sys.exit(0)
@@ -275,7 +277,7 @@ def create_files_in_folder():
 def set_download_path_in_chrome(folder_name: str | None = None):
     cmd_args = [
         "py",
-        f"{RUNNER_USEFUL_CODES_PREFIX_PATH}/set_download_path_in_chrome.py",
+        f"{RUNNER_USEFUL_CODES_FOLDER_PATH}/set_download_path_in_chrome.py",
     ]
     if folder_name:
         cmd_args.append(folder_name)
@@ -287,7 +289,7 @@ def convert_txt_to_srt(value):
     subprocess.run(
         [
             "py",
-            f"{RUNNER_USEFUL_CODES_PREFIX_PATH}/sub-youtube-video/format_subtitle_txt_to_srt.py",
+            f"{RUNNER_USEFUL_CODES_FOLDER_PATH}/sub-youtube-video/format_subtitle_txt_to_srt.py",
             value,
         ],
         shell=True,
@@ -306,7 +308,7 @@ def edit_prompts():
 def rename_files(folder_path: str | None = None, prefix: str | None = None):
     cmd_args = [
         "py",
-        f"{RUNNER_USEFUL_CODES_PREFIX_PATH}/rename_files.py",
+        f"{RUNNER_USEFUL_CODES_FOLDER_PATH}/rename_files.py",
     ]
     if folder_path:
         cmd_args.append(folder_path)
@@ -319,7 +321,7 @@ def rename_files(folder_path: str | None = None, prefix: str | None = None):
 def delete_files(folder_path: str | None = None, ext_list: str | None = None):
     cmd_args = [
         "py",
-        f"{RUNNER_USEFUL_CODES_PREFIX_PATH}/delete_files.py",
+        f"{RUNNER_USEFUL_CODES_FOLDER_PATH}/delete_files.py",
     ]
     if folder_path:
         cmd_args.append(folder_path)
@@ -332,7 +334,7 @@ def delete_files(folder_path: str | None = None, ext_list: str | None = None):
 def keep_files(folder_path: str | None = None, ext: str | None = None):
     cmd_args = [
         "py",
-        f"{RUNNER_USEFUL_CODES_PREFIX_PATH}/keep_files_with_ext.py",
+        f"{RUNNER_USEFUL_CODES_FOLDER_PATH}/keep_files_with_ext.py",
     ]
     if folder_path:
         cmd_args.append(folder_path)
@@ -345,7 +347,7 @@ def keep_files(folder_path: str | None = None, ext: str | None = None):
 def print_feature_description(cmd_type: str | None, action: str | None):
     cmd_args = [
         "python",
-        f"{RUNNER_USEFUL_CODES_PREFIX_PATH}/print_feature_description.py",
+        f"{RUNNER_USEFUL_CODES_FOLDER_PATH}/print_feature_description.py",
     ]
     if cmd_type:
         cmd_args.extend(["--type", cmd_type])
@@ -433,8 +435,8 @@ if __name__ == "__main__":
                 print_help()
             else:
                 raise Exception(RUNNER_WARNING_TYPE_MISSING)
-        elif type_included == RUNNER_GDRIVE:
-            gdrive_execute(action_included, value_included)
+        elif type_included == RUNNER_TYPE_GDRIVE:
+            gdrive_execute(action_included, value_included, extra_included)
         elif type_included == RUNNER_TYPE_CODE:
             if action_included == None:
                 open_runner_files_in_vscode(default_ide_prefix)
