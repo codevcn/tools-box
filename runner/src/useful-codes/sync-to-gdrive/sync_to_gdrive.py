@@ -11,6 +11,7 @@ RUNNER_USEFUL_CODES_FOLDER_PATH = os.getenv("USEFUL_CODES_FOLDER_PATH")
 GDRIVE_ACTION_SYNC = "sync"
 GDRIVE_ACTION_GUIDE = "guide"
 GDRIVE_ACTION_RESET = "reset"
+GDRIVE_ACTION_LIST = "list"
 
 # Tên tệp cấu hình JSON sẽ lưu trữ thông tin remote
 CONFIG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "configs.json")
@@ -44,7 +45,11 @@ def check_remote_exists(remote_name):
     """Kiểm tra xem tên remote có thực sự tồn tại trong hệ thống rclone hay không."""
     try:
         result = subprocess.run(
-            ["rclone", "listremotes"], stdout=subprocess.PIPE, text=True, check=True
+            ["rclone", "listremotes"],
+            stdout=subprocess.PIPE,
+            text=True,
+            encoding="utf-8",
+            check=True,
         )
         return remote_name in result.stdout
     except subprocess.CalledProcessError:
@@ -69,7 +74,11 @@ def run_setup_flow():
     try:
         try:
             result_before = subprocess.run(
-                ["rclone", "listremotes"], stdout=subprocess.PIPE, text=True, check=True
+                ["rclone", "listremotes"],
+                stdout=subprocess.PIPE,
+                text=True,
+                encoding="utf-8",
+                check=True,
             )
             remotes_before = set(
                 [
@@ -85,7 +94,11 @@ def run_setup_flow():
 
         try:
             result_after = subprocess.run(
-                ["rclone", "listremotes"], stdout=subprocess.PIPE, text=True, check=True
+                ["rclone", "listremotes"],
+                stdout=subprocess.PIPE,
+                text=True,
+                encoding="utf-8",
+                check=True,
             )
             remotes_after = set(
                 [
@@ -148,9 +161,12 @@ def sync_to_gdrive(source_path, dest_path, remote_name):
         print(f"Lỗi: Thư mục nguồn '{source_path}' không tồn tại.")
         sys.exit(1)
 
-    # Đảm bảo đường dẫn đích bắt đầu bằng tên remote từ JSON
+    # Đảm bảo đường dẫn đích bắt đầu bằng tên remote từ JSON và đóng vai trò là absolute path trên root
     if not dest_path.startswith(remote_name):
-        remote_dest = f"{remote_name}{dest_path}"
+        _dest = dest_path
+        if _dest and not _dest.startswith("/"):
+            _dest = "/" + _dest
+        remote_dest = f"{remote_name}{_dest}"
     else:
         remote_dest = dest_path
 
@@ -170,6 +186,51 @@ def sync_to_gdrive(source_path, dest_path, remote_name):
         print(f"Lỗi khi thực thi rclone: {e}")
 
 
+def list_directories(target_path, remote_name, is_deep=False):
+    """Lấy danh sách các thư mục từ Google Drive."""
+    # Loại bỏ dấu ngoặc kép bọc quanh nếu chạy qua shell làm tham số chuỗi trống bị bọc
+    if target_path in ['""', "''"]:
+        target_path = ""
+
+    clean_target_path = target_path.strip("/")
+
+    if target_path and not target_path.startswith("/"):
+        target_path = "/" + target_path
+
+    remote_dest = f"{remote_name}{target_path}"
+
+    if is_deep:
+        print(f'Đang lấy danh sách thư mục đệ quy (deep) từ "{remote_dest}"')
+        command = ["rclone", "lsf", remote_dest, "--dirs-only", "-R"]
+    else:
+        print(f'Đang lấy danh sách thư mục trực tiếp từ "{remote_dest}"')
+        command = ["rclone", "lsf", remote_dest, "--dirs-only"]
+
+    try:
+        result = subprocess.run(
+            command, stdout=subprocess.PIPE, text=True, encoding="utf-8", check=True
+        )
+        print("-" * 50)
+        output = result.stdout.strip()
+        if output:
+            if is_deep:
+                for line in output.split("\n"):
+                    line = line.strip().rstrip("/")
+                    if not line:
+                        continue
+                    if clean_target_path:
+                        print(f"{clean_target_path}/{line}")
+                    else:
+                        print(line)
+            else:
+                print(output)
+        else:
+            print("(Không có thư mục nào)")
+        print("-" * 50)
+    except subprocess.CalledProcessError as e:
+        print(f"Lỗi khi thực thi rclone lấy danh sách: {e}")
+
+
 def display_auth_guide():
     subprocess.Popen(
         ["notepad", f"{RUNNER_USEFUL_CODES_FOLDER_PATH}/sync-to-gdrive/AUTH_GUIDE.txt"],
@@ -187,6 +248,7 @@ def reset_config():
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
+            encoding="utf-8",
             check=True,
         )
         remotes = [
@@ -238,6 +300,7 @@ def reset_config():
                     stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE,
                     text=True,
+                    encoding="utf-8",
                     check=True,
                 )
                 output = result.stdout
@@ -284,9 +347,26 @@ def switch_actions():
         display_auth_guide()
     elif action == GDRIVE_ACTION_RESET:
         reset_config()
+    elif action == GDRIVE_ACTION_LIST:
+        args_list = sys.argv[2:]
+        is_deep = False
+        if "-d" in args_list:
+            is_deep = True
+            args_list.remove("-d")
+        if "--deep" in args_list:
+            is_deep = True
+            args_list.remove("--deep")
+
+        target_path = args_list[0] if len(args_list) > 0 else ""
+
+        rclone_remote = load_remote_name()
+        if not rclone_remote or not check_remote_exists(rclone_remote):
+            rclone_remote = run_setup_flow()
+
+        list_directories(target_path, rclone_remote, is_deep)
     elif action == GDRIVE_ACTION_SYNC:
         if len(sys.argv) < 4:
-            print('Cú pháp: py sync_to_gdrive.py sync "<folder nguồn>" "<folder đích>"')
+            print('Cú pháp: py sync_to_gdrive.py sync "<folder nguồn>" "<path đích trên gdrive>"')
             sys.exit(1)
 
         source_dir = sys.argv[2]
@@ -313,4 +393,8 @@ if __name__ == "__main__":
         print("Cú pháp: py sync_to_gdrive.py <action> ...")
         sys.exit(1)
 
-    switch_actions()
+    try:
+        switch_actions()
+    except KeyboardInterrupt:
+        print("\n\nTiến trình đồng bộ Google Drive đã bị ngắt (KeyboardInterrupt).")
+        sys.exit(0)

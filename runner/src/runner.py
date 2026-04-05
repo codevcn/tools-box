@@ -414,6 +414,13 @@ if __name__ == "__main__":
             action="store_true",
             help="Show feature description from app_features.yml",
         )
+        parser.add_argument(
+            "-d",
+            "--deep",
+            default=False,
+            action="store_true",
+            help="Deep recursive action (e.g. for gdrive list)",
+        )
         args = parser.parse_args()
 
         type_included = args.type
@@ -421,6 +428,7 @@ if __name__ == "__main__":
         value_included = args.value
         extra_included = args.extra
         user_message_included = args.user_message
+        deep_included = args.deep
 
         if args.des:
             print_feature_description(type_included, action_included)
@@ -436,7 +444,10 @@ if __name__ == "__main__":
             else:
                 raise Exception(RUNNER_WARNING_TYPE_MISSING)
         elif type_included == RUNNER_TYPE_GDRIVE:
-            gdrive_execute(action_included, value_included, extra_included)
+            gdrive_args = [value_included, extra_included]
+            if deep_included:
+                gdrive_args.append("-d")
+            gdrive_execute(action_included, *gdrive_args)
         elif type_included == RUNNER_TYPE_CODE:
             if action_included == None:
                 open_runner_files_in_vscode(default_ide_prefix)
@@ -525,6 +536,9 @@ if __name__ == "__main__":
         RUNNER_STATUS = "OUT-OF-MAIN-SECTION"
         print(">>> These commands end up with runner-status: " + RUNNER_STATUS)
         sys.exit(1)
+    except KeyboardInterrupt:
+        print("\n\n>>> Tiến trình đã bị hủy bởi người dùng (KeyboardInterrupt).")
+        sys.exit(0)
     except Exception as e:
         warn_user_error(str(e))
         sys.exit(1)
