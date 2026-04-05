@@ -14,6 +14,7 @@ runner [[-h] | <type> <action> [<value> [<extra>]] [-m "message"] [-a] [-p] [--d
 -a                :using Antigravity IDE instead of VSCode.
 -p                :only open in PowerShell, not IDE.
 --des             :print description of typing commands.
+-d, --deep        :deep recursive action (e.g. for gdrive list).
 
 # Available types:
 open              :to open in system folder.
@@ -21,6 +22,7 @@ print             :to print something.
 run               :to execute something.
 code              :to open in vscode.
 git               :to run git command.
+gdrive            :to operate with Google Drive via rclone.
 
 # Available actions:
 ## open:
@@ -61,6 +63,14 @@ git               :to run git command.
    curl           :print CURD of cURL command.
    dir            :print path of runner folder in system.
    cmds           :print some useful commands.
+
+## gdrive:
+   sync           :sync a local folder to a gdrive folder.
+                  // Example: runner gdrive sync "D:/D-Documents/tool" "mac_sync/tool"
+   list           :list folders on gdrive remote. Use -d for deep recursive listing.
+                  // Example: runner gdrive list "mac_sync" -d
+   reset          :reset rclone configurations.
+   guide          :display Google Drive authentication guide.
 
 # Example:
 The command `runner open vscode-ws` will open the working workspaces in vscode.

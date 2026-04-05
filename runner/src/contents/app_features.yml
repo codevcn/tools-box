@@ -8,6 +8,8 @@ runner_tool:
       description: "Dùng Antigravity IDE thay vì VSCode."
     - flag: "-p / --powershell-only"
       description: "Chỉ mở folder trong Windows Terminal, không mở IDE."
+    - flag: "-d / --deep"
+      description: "Liệt kê danh sách thư mục đệ quy sâu (dùng cho gdrive list)."
 
   types:
     - name: "open"
@@ -203,6 +205,34 @@ runner_tool:
           summary: "In hướng dẫn sử dụng runner tool."
           details: "Đọc và in file `contents/help.txt`."
           conditions: "File `contents/help.txt` phải tồn tại."
+
+    - name: "gdrive"
+      description: "Thao tác với Google Drive qua rclone"
+      actions:
+        - id: "ACTION 32"
+          title: "Đồng bộ thư mục lên GDrive"
+          command: 'runner gdrive sync "<source_folder>" "<dest_path>"'
+          summary: "Sử dụng rclone để đồng bộ một thư mục từ máy tính lên Google Drive."
+          details: "Chạy lệnh `rclone sync [...]`. Lần đầu sẽ tự động chạy luồng setup để cài đặt tên remote và ủy quyền."
+          conditions: "Cần truyền 2 tham số: đường dẫn source ở máy và đường dẫn đích trên remote. Cần có rclone."
+        - id: "ACTION 33"
+          title: "Đọc danh sách folder GDrive"
+          command: 'runner gdrive list [<target_path>] [-d]'
+          summary: "Liệt kê tất cả thư mục trên Google Drive remote."
+          details: "Dùng lệnh `rclone lsf`. Nếu người dùng truyền cờ `-d` hoặc `--deep`, sẽ liệt kê đệ quy sâu toàn bộ các thư mục con."
+          conditions: "Cần có rclone."
+        - id: "ACTION 34"
+          title: "Reset Cấu hình GDrive"
+          command: "runner gdrive reset"
+          summary: "Xóa cấu hình rclone hiện tại để chuẩn bị cho một chu kỳ setup mới."
+          details: "Cho phép người dùng xóa một remote cụ thể hoặc toàn bộ các file `rclone.conf` và file `configs.json` nội bộ."
+          conditions: "Cần chạy tương tác với người dùng ở terminal."
+        - id: "ACTION 35"
+          title: "Mở hướng dẫn cấu hình GDrive"
+          command: "runner gdrive guide"
+          summary: "Mở file chứa thông tin hướng dẫn về gdrive."
+          details: "Mở notepad cho `sync-to-gdrive/AUTH_GUIDE.txt`."
+          conditions: "File cần tồn tại."
 
     - name: "scripts"
       description: "Scripts độc lập (không qua runner CLI)"
