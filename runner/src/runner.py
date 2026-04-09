@@ -14,6 +14,7 @@ RUNNER_TYPE_RUN = "run"
 RUNNER_TYPE_PRINT = "print"
 RUNNER_TYPE_GIT = "git"
 RUNNER_TYPE_GDRIVE = "gdrive"
+RUNNER_TYPE_CLEANUP = "cleanup"
 
 # --- Actions ---
 # open
@@ -358,6 +359,14 @@ def print_feature_description(cmd_type: str | None, action: str | None):
     sys.exit(0)
 
 
+def cmd_cleanup():
+    subprocess.run(
+        [f"{RUNNER_ROOT_FOLDER}/src/cmd/cleanup.cmd"],
+        shell=True,
+    )
+    sys.exit(0)
+
+
 # --- Main ---
 
 if __name__ == "__main__":
@@ -443,6 +452,8 @@ if __name__ == "__main__":
                 print_help()
             else:
                 raise Exception(RUNNER_WARNING_TYPE_MISSING)
+        elif type_included == RUNNER_TYPE_CLEANUP:
+            cmd_cleanup()
         elif type_included == RUNNER_TYPE_GDRIVE:
             gdrive_args = [value_included, extra_included]
             if deep_included:

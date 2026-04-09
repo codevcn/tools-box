@@ -23,6 +23,7 @@ run               :to execute something.
 code              :to open in vscode.
 git               :to run git command.
 gdrive            :to operate with Google Drive via rclone.
+cleanup           :to run cleanup script to clean up junk processes in the system.
 
 # Available actions:
 ## open:
@@ -71,6 +72,9 @@ gdrive            :to operate with Google Drive via rclone.
                   // Example: runner gdrive list "mac_sync" -d
    reset          :reset rclone configurations.
    guide          :display Google Drive authentication guide.
+
+## cleanup:
+   (no action)     :run cleanup script to clean up junk processes in the system.
 
 # Example:
 The command `runner open vscode-ws` will open the working workspaces in vscode.

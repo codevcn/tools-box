@@ -217,7 +217,7 @@ runner_tool:
           conditions: "Cần truyền 2 tham số: đường dẫn source ở máy và đường dẫn đích trên remote. Cần có rclone."
         - id: "ACTION 33"
           title: "Đọc danh sách folder GDrive"
-          command: 'runner gdrive list [<target_path>] [-d]'
+          command: "runner gdrive list [<target_path>] [-d]"
           summary: "Liệt kê tất cả thư mục trên Google Drive remote."
           details: "Dùng lệnh `rclone lsf`. Nếu người dùng truyền cờ `-d` hoặc `--deep`, sẽ liệt kê đệ quy sâu toàn bộ các thư mục con."
           conditions: "Cần có rclone."
@@ -234,21 +234,15 @@ runner_tool:
           details: "Mở notepad cho `sync-to-gdrive/AUTH_GUIDE.txt`."
           conditions: "File cần tồn tại."
 
-    - name: "scripts"
-      description: "Scripts độc lập (không qua runner CLI)"
+    - name: "cleanup"
+      description: "Chạy script dọn dẹp hệ thống"
       actions:
-        - id: "ACTION 30"
-          title: "Generate YouTube Subtitle (SRT)"
-          file: "useful-codes/sub-youtube-video/gen_sub_file.py"
-          summary: "Tải phụ đề tiếng Anh từ YouTube và dịch sang tiếng Việt bằng Gemini AI, xuất file `.srt`."
-          details: "Đọc YouTube link từ file `input/video_config.txt` (key `youtube_video_link`). Dùng `youtube_transcript_api` để fetch phụ đề tiếng Anh. Tóm tắt nội dung video qua Gemini (đọc từ `input/video_summary.md` nếu đã có, gọi API nếu chưa). Chia phụ đề thành các chunk (`TRANSLATE_CHUNK_SIZE`), dịch từng chunk qua Gemini API. Retry tự động (tối đa 3 lần) với delay đọc từ error message khi bị rate limit. Nếu chunk thất bại thì fallback giữ nguyên text tiếng Anh. Xuất file SRT ra `result/vietsub_<video_id>.srt`."
-          conditions: "Biến môi trường `GEMINI_API_KEY`, `GEMINI_MODEL`, `TRANSLATE_CHUNK_SIZE` phải được cấu hình. Video YouTube phải có phụ đề tiếng Anh. Cần thư viện `youtube_transcript_api`, `google-genai`."
-        - id: "ACTION 31"
-          title: "Convert PNG to SVG"
-          file: "useful-codes/convert_png_to_svg.py"
-          summary: "Chuyển đổi ảnh PNG sang SVG vector bằng thư viện `vtracer`."
-          details: "Input `input.png` (cứng trong code, cùng thư mục). Output `output.svg` (cùng thư mục). Dùng mode `spline` + `color` để tạo SVG nhiều màu, đường cong mềm. Tham số: `filter_speckle=4`, `color_precision=6`, `layer_difference=16`, `corner_threshold=60`, `max_iterations=10`."
-          conditions: "Thư viện `vtracer` phải được cài (`pip install vtracer`). File `input.png` phải tồn tại cùng thư mục với script."
+        - id: "ACTION 36"
+          title: "Chạy Cleanup Script"
+          command: "runner cleanup"
+          summary: "Thực thi script dọn dẹp hệ thống để loại bỏ các tiến trình rác, giải phóng tài nguyên."
+          details: "Chạy file batch `cleanup.cmd` nằm trong thư mục `src/cmd` của runner project. Script này sẽ thực hiện một loạt lệnh để tắt các tiến trình không cần thiết, xóa file tạm, và tối ưu hóa hiệu suất hệ thống."
+          conditions: "File `cleanup.cmd` phải tồn tại trong `src/cmd`. Script sẽ chạy tương tác và có thể yêu cầu quyền admin tùy vào nội dung của `cleanup.cmd`."
 
 config:
   ROOT_FOLDER_PATH: "Đường dẫn gốc của runner project."
