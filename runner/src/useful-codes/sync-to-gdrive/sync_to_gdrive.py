@@ -12,6 +12,9 @@ GDRIVE_ACTION_SYNC = "sync"
 GDRIVE_ACTION_GUIDE = "guide"
 GDRIVE_ACTION_RESET = "reset"
 GDRIVE_ACTION_LIST = "list"
+GDRIVE_ACTION_REMOTE = "remote"
+GDRIVE_ACTION_DEL_FD = "del-fd"
+GDRIVE_ACTION_URL = "url"
 
 # Tên tệp cấu hình JSON sẽ lưu trữ thông tin remote
 CONFIG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "configs.json")
@@ -182,12 +185,32 @@ def sync_to_gdrive(source_path, dest_path, remote_name):
         subprocess.run(command, check=True)
         print("-" * 50)
         print("Đồng bộ hoàn tất thành công!")
+
+        # Bổ sung tính năng lấy link Web cho folder đích sau khi sync
+        try:
+            print("Đang tạo/lấy URL thư mục đích...")
+            link_result = subprocess.run(
+                ["rclone", "link", remote_dest],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                encoding="utf-8",
+                check=True,
+            )
+            folder_link = link_result.stdout.strip()
+            print(f"URL truy cập: {folder_link}")
+            print("-" * 50)
+        except subprocess.CalledProcessError as e:
+            print(
+                f"Không thể tạo URL thư mục đích (Lỗi do remote hoặc cấp quyền). Chi tiết: {e.stderr.strip()}"
+            )
+
     except subprocess.CalledProcessError as e:
         print(f"Lỗi khi thực thi rclone: {e}")
 
 
-def list_directories(target_path, remote_name, is_deep=False):
-    """Lấy danh sách các thư mục từ Google Drive."""
+def list_directories(target_path, remote_name, is_deep=False, is_file=False):
+    """Lấy danh sách các thư mục hoặc tệp từ Google Drive."""
     # Loại bỏ dấu ngoặc kép bọc quanh nếu chạy qua shell làm tham số chuỗi trống bị bọc
     if target_path in ['""', "''"]:
         target_path = ""
@@ -199,12 +222,15 @@ def list_directories(target_path, remote_name, is_deep=False):
 
     remote_dest = f"{remote_name}{target_path}"
 
+    item_type = "tệp tin" if is_file else "thư mục"
+    mode_flag = "--files-only" if is_file else "--dirs-only"
+
     if is_deep:
-        print(f'Đang lấy danh sách thư mục đệ quy (deep) từ "{remote_dest}"')
-        command = ["rclone", "lsf", remote_dest, "--dirs-only", "-R"]
+        print(f'Đang lấy danh sách {item_type} đệ quy (deep) từ "{remote_dest}"')
+        command = ["rclone", "lsf", remote_dest, mode_flag, "-R"]
     else:
-        print(f'Đang lấy danh sách thư mục trực tiếp từ "{remote_dest}"')
-        command = ["rclone", "lsf", remote_dest, "--dirs-only"]
+        print(f'Đang lấy danh sách {item_type} trực tiếp từ "{remote_dest}"')
+        command = ["rclone", "lsf", remote_dest, mode_flag]
 
     try:
         result = subprocess.run(
@@ -215,9 +241,14 @@ def list_directories(target_path, remote_name, is_deep=False):
         if output:
             if is_deep:
                 for line in output.split("\n"):
-                    line = line.strip().rstrip("/")
+                    if not is_file:
+                        line = line.strip().rstrip("/")
+                    else:
+                        line = line.strip()
+
                     if not line:
                         continue
+
                     if clean_target_path:
                         print(f"{clean_target_path}/{line}")
                     else:
@@ -225,7 +256,7 @@ def list_directories(target_path, remote_name, is_deep=False):
             else:
                 print(output)
         else:
-            print("(Không có thư mục nào)")
+            print(f"(Không có {item_type} nào)")
         print("-" * 50)
     except subprocess.CalledProcessError as e:
         print(f"Lỗi khi thực thi rclone lấy danh sách: {e}")
@@ -340,6 +371,100 @@ def reset_config():
     sys.exit(0)
 
 
+def show_remote_info(remote_name):
+    print(f"--- Thông tin cấu hình và dung lượng của remote: {remote_name} ---")
+
+    clean_remote = remote_name.rstrip(":")
+
+    try:
+        about_result = subprocess.run(
+            ["rclone", "about", remote_name],
+            stdout=subprocess.PIPE,
+            text=True,
+            encoding="utf-8",
+            check=True,
+        )
+        print(">> Thông tin dung lượng:")
+        print(about_result.stdout.strip())
+        print("-" * 50)
+    except subprocess.CalledProcessError:
+        print(
+            ">> Không thể lấy thông tin dung lượng (có thể remote không hỗ trợ tính năng này)."
+        )
+        print("-" * 50)
+
+    try:
+        config_result = subprocess.run(
+            ["rclone", "config", "show", clean_remote],
+            stdout=subprocess.PIPE,
+            text=True,
+            encoding="utf-8",
+            check=True,
+        )
+        print(">> Cấu hình thực tế trên rclone:")
+        for line in config_result.stdout.strip().split("\n"):
+            if line.strip().startswith("token ="):
+                print("token = ***_HIDDEN_***")
+            elif line.strip().startswith("client_secret ="):
+                print("client_secret = ***_HIDDEN_***")
+            else:
+                print(line)
+    except subprocess.CalledProcessError as e:
+        print(f">> Cảnh báo không lấy được cấu hình chi tiết: {e}")
+
+
+def delete_folder_on_remote(target_path, remote_name):
+    if target_path in ['""', "''"]:
+        target_path = ""
+
+    target_path = target_path.strip()
+
+    if not target_path or target_path == "/":
+        print("Lỗi: Đường dẫn rỗng hoặc là thư mục gốc (root), xin đừng làm vậy!")
+        return
+
+    if not target_path.startswith("/"):
+        target_path = "/" + target_path
+
+    remote_dest = f"{remote_name}{target_path}"
+
+    print(f"Đang tiến hành xóa: {remote_dest} ...")
+    try:
+        subprocess.run(["rclone", "purge", remote_dest], check=True)
+        print(
+            f"Đã xóa thành công toàn bộ thư mục '{target_path.strip('/')}' trên remote!"
+        )
+    except subprocess.CalledProcessError as e:
+        print(f"Đã xảy ra lỗi trong quá trình xóa thư mục: {e}")
+
+
+def get_url_from_remote(target_path, remote_name):
+    if target_path in ['""', "''"]:
+        target_path = ""
+
+    target_path = target_path.strip()
+
+    if target_path and not target_path.startswith("/"):
+        target_path = "/" + target_path
+
+    remote_dest = f"{remote_name}{target_path}"
+
+    print(f"Đang lấy URL truy cập cho: {remote_dest} ...")
+    try:
+        link_result = subprocess.run(
+            ["rclone", "link", remote_dest],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            encoding="utf-8",
+            check=True,
+        )
+        folder_link = link_result.stdout.strip()
+        print(f"URL: {folder_link}")
+    except subprocess.CalledProcessError as e:
+        print(f"Lỗi khi lấy URL: {e.stderr.strip()}")
+
+
 def switch_actions():
     action = sys.argv[1] if len(sys.argv) > 1 else None
 
@@ -347,15 +472,53 @@ def switch_actions():
         display_auth_guide()
     elif action == GDRIVE_ACTION_RESET:
         reset_config()
+    elif action == GDRIVE_ACTION_REMOTE:
+        rclone_remote = load_remote_name()
+        if not rclone_remote or not check_remote_exists(rclone_remote):
+            rclone_remote = run_setup_flow()
+        show_remote_info(rclone_remote)
+    elif action == GDRIVE_ACTION_DEL_FD:
+        target_path = sys.argv[2] if len(sys.argv) > 2 else ""
+        if not target_path:
+            print("Cú pháp: runner gdrive del-fd <tên_thư_mục_trên_remote>")
+            sys.exit(1)
+
+        rclone_remote = load_remote_name()
+        if not rclone_remote or not check_remote_exists(rclone_remote):
+            rclone_remote = run_setup_flow()
+
+        # Hỏi xác nhận
+        confirm = input(
+            f'Có chắc muốn xóa thư mục "{target_path}" ko? nhập y để xóa, nhập n để hủy: '
+        ).strip()
+        if confirm == "y":
+            delete_folder_on_remote(target_path, rclone_remote)
+        else:
+            print("Đã hủy bỏ thao tác xóa.")
+    elif action == GDRIVE_ACTION_URL:
+        target_path = sys.argv[2] if len(sys.argv) > 2 else ""
+        if not target_path:
+            print("Cú pháp: runner gdrive url <đường_dẫn_trên_remote>")
+            sys.exit(1)
+
+        rclone_remote = load_remote_name()
+        if not rclone_remote or not check_remote_exists(rclone_remote):
+            rclone_remote = run_setup_flow()
+
+        get_url_from_remote(target_path, rclone_remote)
     elif action == GDRIVE_ACTION_LIST:
         args_list = sys.argv[2:]
         is_deep = False
+        is_file = False
         if "-d" in args_list:
             is_deep = True
             args_list.remove("-d")
         if "--deep" in args_list:
             is_deep = True
             args_list.remove("--deep")
+        if "--file" in args_list:
+            is_file = True
+            args_list.remove("--file")
 
         target_path = args_list[0] if len(args_list) > 0 else ""
 
@@ -363,10 +526,12 @@ def switch_actions():
         if not rclone_remote or not check_remote_exists(rclone_remote):
             rclone_remote = run_setup_flow()
 
-        list_directories(target_path, rclone_remote, is_deep)
+        list_directories(target_path, rclone_remote, is_deep, is_file)
     elif action == GDRIVE_ACTION_SYNC:
         if len(sys.argv) < 4:
-            print('Cú pháp: py sync_to_gdrive.py sync "<folder nguồn>" "<path đích trên gdrive>"')
+            print(
+                'Cú pháp: py sync_to_gdrive.py sync "<folder nguồn>" "<path đích trên gdrive>"'
+            )
             sys.exit(1)
 
         source_dir = sys.argv[2]

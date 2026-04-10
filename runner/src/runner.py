@@ -430,6 +430,13 @@ if __name__ == "__main__":
             action="store_true",
             help="Deep recursive action (e.g. for gdrive list)",
         )
+        parser.add_argument(
+            "-f",
+            "--file",
+            default=False,
+            action="store_true",
+            help="List files instead of folders (for gdrive list)",
+        )
         args = parser.parse_args()
 
         type_included = args.type
@@ -438,6 +445,7 @@ if __name__ == "__main__":
         extra_included = args.extra
         user_message_included = args.user_message
         deep_included = args.deep
+        file_included = args.file
 
         if args.des:
             print_feature_description(type_included, action_included)
@@ -458,6 +466,8 @@ if __name__ == "__main__":
             gdrive_args = [value_included, extra_included]
             if deep_included:
                 gdrive_args.append("-d")
+            if file_included:
+                gdrive_args.append("--file")
             gdrive_execute(action_included, *gdrive_args)
         elif type_included == RUNNER_TYPE_CODE:
             if action_included == None:
