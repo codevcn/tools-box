@@ -14,7 +14,8 @@ RUNNER_TYPE_RUN = "run"
 RUNNER_TYPE_PRINT = "print"
 RUNNER_TYPE_GIT = "git"
 RUNNER_TYPE_GDRIVE = "gdrive"
-RUNNER_TYPE_CLEANUP = "cleanup"
+RUNNER_TYPE_INIT = "init"
+RUNNER_TYPE_PY = "py"
 
 # --- Actions ---
 # open
@@ -48,6 +49,8 @@ RUNNER_PRINT_VSCODE_WORKSPACES = "ws"
 RUNNER_PRINT_CURL = "curl"
 RUNNER_PRINT_DIRECTORY = "dir"
 RUNNER_PRINT_USEFUL_COMMANDS = "cmds"
+# py
+RUNNER_PY_ENV = "env"
 
 RUNNER_FLAG_H = "-h"
 RUNNER_FLAG_M = "-m"
@@ -359,11 +362,21 @@ def print_feature_description(cmd_type: str | None, action: str | None):
     sys.exit(0)
 
 
-def cmd_cleanup():
+def cmd_init():
     subprocess.run(
-        [f"{RUNNER_ROOT_FOLDER}/src/cmd/cleanup.cmd"],
+        [f"{RUNNER_ROOT_FOLDER}/src/cmd/init.cmd"],
         shell=True,
     )
+    sys.exit(0)
+
+
+def py_setup_venv():
+    cmd_args = [
+        "python",
+        f"{RUNNER_USEFUL_CODES_FOLDER_PATH}/setup_venv_in_project.py",
+    ]
+
+    subprocess.run(cmd_args, shell=True)
     sys.exit(0)
 
 
@@ -460,8 +473,13 @@ if __name__ == "__main__":
                 print_help()
             else:
                 raise Exception(RUNNER_WARNING_TYPE_MISSING)
-        elif type_included == RUNNER_TYPE_CLEANUP:
-            cmd_cleanup()
+        elif type_included == RUNNER_TYPE_PY:
+            if action_included == RUNNER_PY_ENV:
+                py_setup_venv()
+            else:
+                raise Exception(RUNNER_WARNING_ACTION_MISSING)
+        elif type_included == RUNNER_TYPE_INIT:
+            cmd_init()
         elif type_included == RUNNER_TYPE_GDRIVE:
             gdrive_args = [value_included, extra_included]
             if deep_included:
