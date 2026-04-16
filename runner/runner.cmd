@@ -1,1 +1,1 @@
-py D:/D-Documents/TOOLs/runner/src/runner.py %*
+py D:/D-Documents/TOOLs/runner/src/main.py %*

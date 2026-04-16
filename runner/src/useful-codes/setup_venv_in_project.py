@@ -255,6 +255,18 @@ def step_show_activate_guide(venv_dir: Path, project_dir: Path):
     )
 
 
+def step_create_venv_cmd(venv_dir: Path, project_dir: Path):
+    """Bước 6 - Tạo file venv.cmd để kích hoạt venv nhanh."""
+    step("Bước 6: Tạo file venv.cmd")
+    venv_cmd_file = project_dir / "venv.cmd"
+    relative_activate = venv_dir.name + r"\Scripts\activate"
+
+    venv_cmd_file.write_text(relative_activate + "\n", encoding="utf-8")
+    success(f"Đã tạo: {venv_cmd_file}")
+    info(f"Nội dung: {relative_activate}")
+    info("Dùng lệnh 'venv' trong CMD để kích hoạt môi trường ảo.")
+
+
 # ─────────────────────────────────────────────
 #  Main
 # ─────────────────────────────────────────────
@@ -330,6 +342,7 @@ def main():
         step_create_dotenv(project_dir)
 
     step_show_activate_guide(venv_dir, project_dir)
+    step_create_venv_cmd(venv_dir, project_dir)
 
     # ── Footer ──────────────────────────────────
     print(f"{C.BOLD}{C.GREEN}{'═' * 56}{C.RESET}")
